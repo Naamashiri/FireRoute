@@ -1,9 +1,9 @@
 package routing;
 
-import data.RiskEvaluator;
-import model.Graph;
-import model.Junction;
-import model.RoadSegment;
+import risk.RiskEvaluator;
+import graph.Graph;
+import graph.Junction;
+import graph.RoadSegment;
 
 import java.util.*;
 

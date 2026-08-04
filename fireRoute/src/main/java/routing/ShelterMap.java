@@ -1,8 +1,8 @@
 package routing;
 
-import model.Graph;
-import model.Junction;
-import model.RoadSegment;
+import graph.Graph;
+import graph.Junction;
+import graph.RoadSegment;
 
 import java.util.*;
 

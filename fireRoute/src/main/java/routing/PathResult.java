@@ -1,6 +1,6 @@
 package routing;
 
-import model.Junction;
+import graph.Junction;
 
 import java.util.ArrayList;
 import java.util.Collections;
