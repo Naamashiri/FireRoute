@@ -91,7 +91,8 @@ public class PathFinder {
                 }
 
                 double segmentRisk = riskEvaluator.getSegmentRisk(u, v);
-                double edgeCost = segment.getTravelTime() + params.getFearFactor() * segmentRisk;
+                double edgeCost = params.getPaceMultiplier()
+                        * (segment.getTravelTime() + params.getFearFactor() * segmentRisk);
                 double newCost = dist.get(u) + edgeCost;
 
                 if (newCost < dist.get(v)) {
@@ -148,8 +149,9 @@ public class PathFinder {
 
             double segmentRisk = riskEvaluator.getSegmentRisk(current, next);
 
-            totalTime += segment.getTravelTime();
-            totalCost += segment.getTravelTime() + params.getFearFactor() * segmentRisk;
+            totalTime += params.getPaceMultiplier() * segment.getTravelTime();
+            totalCost += params.getPaceMultiplier()
+                    * (segment.getTravelTime() + params.getFearFactor() * segmentRisk);
             maxRisk = Math.max(maxRisk, segmentRisk);
 
             current = next;
@@ -160,7 +162,8 @@ public class PathFinder {
     }
 
     private boolean isShelterReachableInTime(Junction junction, RouteParams params) {
-        return shelterMap.getDistanceToShelter(junction) <= params.getMaxShelterMinutes();
+        double actualMinutes = params.getPaceMultiplier() * shelterMap.getDistanceToShelter(junction);
+        return actualMinutes <= params.getMaxShelterMinutes();
     }
 
     private RoadSegment findSegment(Junction from, Junction to) {
@@ -200,8 +203,9 @@ public class PathFinder {
 
             double segmentRisk = riskEvaluator.getSegmentRisk(prev, current);
 
-            totalTime += seg.getTravelTime();
-            totalCost += seg.getTravelTime() + params.getFearFactor() * segmentRisk;
+            totalTime += params.getPaceMultiplier() * seg.getTravelTime();
+            totalCost += params.getPaceMultiplier()
+                    * (seg.getTravelTime() + params.getFearFactor() * segmentRisk);
             maxRisk = Math.max(maxRisk, segmentRisk);
 
             current = prev;

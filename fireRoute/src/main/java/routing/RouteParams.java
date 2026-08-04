@@ -4,72 +4,46 @@ package routing;
  * Holds user/configuration parameters for route planning.
  */
 public class RouteParams {
+    private static final double DEFAULT_MAX_SHELTER_MINUTES = 7.0;
+    private static final double DEFAULT_WALKING_SPEED_KMH = 5.0;
+    private static final double DEFAULT_USER_FEAR_FACTOR = 1.0;
+    private double maxShelterMinutes;
+    private double walkingSpeedKmh;
+    private double userFearFactor;
 
-    /** User "fear" factor: higher means avoiding risk more strongly. Must be >= 0. */
-    private final double fearFactor;
+    public RouteParams() {
+        this.maxShelterMinutes = DEFAULT_MAX_SHELTER_MINUTES;
+        this.walkingSpeedKmh = DEFAULT_WALKING_SPEED_KMH;
+        this.userFearFactor = DEFAULT_USER_FEAR_FACTOR;
+    }
 
-    /** Maximum allowed time (minutes) from any visited junction to the nearest shelter. Must be > 0. */
-    private final double maxShelterMinutes;
-
-    /**
-     * Creates routing parameters.
-     *
-     * @param fearFactor        fear factor (must be >= 0)
-     * @param maxShelterMinutes max allowed minutes to a shelter (must be > 0)
-     *
-     * Preconditions:
-     * - fearFactor >= 0
-     * - maxShelterMinutes > 0
-     *
-     * Postconditions:
-     * - this.fearFactor == fearFactor
-     * - this.maxShelterMinutes == maxShelterMinutes
-     *
-     * @throws IllegalArgumentException if parameters are out of range
-     */
-    public RouteParams(double fearFactor, double maxShelterMinutes) {
-        if (fearFactor < 0) {
-            throw new IllegalArgumentException("fearFactor must be >= 0");
-        }
+    public RouteParams(double maxShelterMinutes, WalkingPace walkingPace, double userFearFactor) {
         if (maxShelterMinutes <= 0) {
-            throw new IllegalArgumentException("maxShelterMinutes must be > 0");
+            throw new IllegalArgumentException("maxShelterMinutes must be positive");
         }
-        this.fearFactor = fearFactor;
+        if (walkingPace == null) {
+            throw new IllegalArgumentException("walkingPace cannot be null");
+        }
+        if (userFearFactor < 0) {
+            throw new IllegalArgumentException("userFearFactor must be non-negative");
+        }
         this.maxShelterMinutes = maxShelterMinutes;
+        this.walkingSpeedKmh = walkingPace.getSpeedKmh();
+        this.userFearFactor = userFearFactor;
     }
 
-    /** Default "maxShelterMinutes" is 7 minutes */
-    public RouteParams(double fearFactor) {
-        if (fearFactor < 0) {
-            throw new IllegalArgumentException("fearFactor must be >= 0");
-        }
-        this.fearFactor = fearFactor;
-        this.maxShelterMinutes = 7.0;
-    }
+    public double getMaxShelterMinutes() { return maxShelterMinutes; }
+    public double getWalkingSpeedKmh() { return walkingSpeedKmh; }
+    public double getFearFactor() { return userFearFactor; }
 
     /**
-     * Convenience factory: typical defaults for your app.
-     * (Fear 1.0, shelter constraint 7 minutes).
-     *
-     * @return RouteParams with common defaults
+     * Slower-than-average pace yields a multiplier > 1 (more time exposed to risk per segment);
+     * faster-than-average pace yields a multiplier < 1.
      */
-    public static RouteParams defaultParams() {
-        return new RouteParams(1.0, 7.0);
-    }
-
-    /** @return user fear factor (>= 0). */
-    public double getFearFactor() {
-        return fearFactor;
-    }
-
-    /** @return maximum allowed minutes to a shelter (> 0). */
-    public double getMaxShelterMinutes() {
-        return maxShelterMinutes;
-    }
-
-    @Override
-    public String toString() {
-        return "RouteParams{fearFactor=" + fearFactor +
-                ", maxShelterMinutes=" + maxShelterMinutes + "}";
+    public double getPaceMultiplier() {
+        return WalkingPace.AVERAGE.getSpeedKmh() / walkingSpeedKmh;
     }
 }
+
+
+
