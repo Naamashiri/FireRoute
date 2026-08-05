@@ -72,8 +72,7 @@ class PathFinderWalkingPaceTest {
 
         double expectedRatio = slowPace.getPaceMultiplier();
         assertEquals(averageResult.getTotalTime() * expectedRatio, slowResult.getTotalTime(), 1e-9);
-        // Loose delta: totalCost bakes in a risk score sampled at slightly different instants.
-        assertEquals(averageResult.getTotalCost() * expectedRatio, slowResult.getTotalCost(), 1e-6);
+        assertEquals(averageResult.getTotalCost() * expectedRatio, slowResult.getTotalCost(), 1e-9);
     }
 
     @Test
