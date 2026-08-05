@@ -2,7 +2,7 @@ package engine;
 
 import graph.Graph;
 import graph.Junction;
-import routing.DijkstraPathFinder;
+import routing.PathFinder;
 import routing.PathResult;
 import routing.RouteParams;
 

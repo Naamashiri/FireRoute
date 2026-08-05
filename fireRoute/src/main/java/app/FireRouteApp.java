@@ -1,15 +1,14 @@
 package app;
 
-import data.JsonRiskZoneLoader;
-import data.RiskEvaluator;
-import data.RiskZone;
-import data.ZoneIndex;
 import engine.FireRouteEngine;
 import graph.Graph;
-import routing.DijkstraPathFinder;
+import loader.JsonRiskZoneLoader;
+import risk.RiskEvaluator;
+import risk.RiskZone;
+import risk.ZoneIndex;
+import routing.PathFinder;
 import routing.PathResult;
 import routing.RouteParams;
-import routing.ShelterMap;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -32,37 +31,29 @@ public class FireRouteApp {
                     );
 
             // 3. יצירת אינדקס לאזורי הסיכון
-            ZoneIndex zoneIndex =
-                    new ZoneIndex(riskZones);
+            ZoneIndex zoneIndex = new ZoneIndex();
+            zoneIndex.build(graph, riskZones);
 
             // 4. יצירת מחשב הסיכון
             RiskEvaluator riskEvaluator =
                     new RiskEvaluator(zoneIndex);
 
-            // 5. חישוב או טעינת מידע על מקלטים
-            ShelterMap shelterMap =
-                    createShelterMap(graph);
+            // 5. יצירת אלגוריתם הניתוב (בונה את ShelterMap שלו פנימית)
+            PathFinder pathFinder =
+                    new PathFinder(graph, riskEvaluator);
 
-            // 6. יצירת אלגוריתם הניתוב
-            DijkstraPathFinder pathFinder =
-                    new DijkstraPathFinder(
-                            graph,
-                            riskEvaluator,
-                            shelterMap
-                    );
-
-            // 7. יצירת המנוע
+            // 6. יצירת המנוע
             FireRouteEngine engine =
                     new FireRouteEngine(graph, pathFinder);
 
-            // 8. קלט זמני
+            // 7. קלט זמני
             RouteParams params =
                     createRouteParams();
 
             String sourceId = "A";
             String destinationId = "F";
 
-            // 9. חישוב המסלול
+            // 8. חישוב המסלול
             PathResult result =
                     engine.calculateRoute(
                             sourceId,
@@ -70,7 +61,7 @@ public class FireRouteApp {
                             params
                     );
 
-            // 10. הצגת התוצאה
+            // 9. הצגת התוצאה
             printResult(result);
 
         } catch (Exception exception) {
@@ -98,23 +89,8 @@ public class FireRouteApp {
         return graph;
     }
 
-    private static ShelterMap createShelterMap(Graph graph) {
-        /*
-         * כאן תטעני מקלטים ותפעילי
-         * Multi-source Dijkstra אם זה מה שהמחלקה שלך עושה.
-         */
-
-        return new ShelterMap();
-    }
-
     private static RouteParams createRouteParams() {
-        /*
-         * להתאים ל-constructor האמיתי שלך.
-         */
-
-        return new RouteParams(
-                // לדוגמה: fearLevel, speed, maxShelterDistance
-        );
+        return new RouteParams();
     }
 
     private static void printResult(PathResult result) {
