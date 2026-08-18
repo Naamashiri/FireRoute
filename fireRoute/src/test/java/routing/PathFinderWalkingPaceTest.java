@@ -10,6 +10,7 @@ import risk.RiskProfile;
 import risk.RiskZone;
 import risk.ZoneIndex;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,80 +18,186 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Verifies that a slower WalkingPace increases both the reported travel time
- * and the risk-weighted cost of a route, without changing the risk score
- * itself or the chosen path.
+ * Verifies how walking pace affects route time, total cost
+ * and shelter accessibility.
  */
 class PathFinderWalkingPaceTest {
 
-    /** A now-shaped danger zone around junction A's coordinates, junction B sits outside it. */
-    private static RiskEvaluator riskEvaluatorOverZoneAroundOrigin(Graph graph) {
-        GeoPolygon dangerZone = new GeoPolygon(List.of(
-                new GeoPoint(-1, -1), new GeoPoint(1, -1),
-                new GeoPoint(1, 1), new GeoPoint(-1, 1)));
-        RiskProfile hotProfile = new RiskProfile(10, 0.8, System.currentTimeMillis());
-        RiskZone zone = new RiskZone("z1", "danger-zone", dangerZone, hotProfile);
-
-        ZoneIndex zoneIndex = new ZoneIndex();
-        zoneIndex.build(graph, List.of(zone));
-        return new RiskEvaluator(zoneIndex);
-    }
-
-    private static Graph twoJunctionGraph(double travelTimeMinutes) {
+    /**
+     * Creates a graph containing two connected junctions.
+     */
+    private static Graph createTwoJunctionGraph(
+            double travelTimeMinutes
+    ) {
         Graph graph = new Graph();
-        graph.addJunction(new Junction("A", 0.0, 0.0, false));
-        graph.addJunction(new Junction("B", 10.0, 10.0, true));
-        graph.addRoadSegment("A", "B", travelTimeMinutes, 0.0);
+
+        graph.addJunction(
+                new Junction("A", 0.0, 0.0, false)
+        );
+
+        graph.addJunction(
+                new Junction("B", 10.0, 10.0, true)
+        );
+
+        graph.addRoadSegment(
+                "A",
+                "B",
+                travelTimeMinutes,
+                0.0
+        );
+
         return graph;
     }
 
+    /**
+     * Creates a risk evaluator with a danger zone surrounding
+     * junction A. Junction B is outside the zone.
+     */
+    private static RiskEvaluator createRiskEvaluator(
+            Graph graph
+    ) {
+        GeoPolygon dangerZonePolygon = new GeoPolygon(
+                List.of(
+                        new GeoPoint(-1.0, -1.0),
+                        new GeoPoint(1.0, -1.0),
+                        new GeoPoint(1.0, 1.0),
+                        new GeoPoint(-1.0, 1.0)
+                )
+        );
+
+        RiskProfile riskProfile = new RiskProfile(
+                "area-10",
+                8,
+                Instant.now(),
+                false
+        );
+
+        RiskZone riskZone = new RiskZone(
+                "zone-1",
+                "danger-zone",
+                dangerZonePolygon,
+                riskProfile
+        );
+
+        ZoneIndex zoneIndex = new ZoneIndex();
+        zoneIndex.build(graph, List.of(riskZone));
+
+        return new RiskEvaluator(zoneIndex);
+    }
+
     @Test
-    void slowerPaceIncreasesTravelTimeAndCostButNotRiskOrPath() {
-        Graph graph = twoJunctionGraph(2.0);
-        RiskEvaluator riskEvaluator = riskEvaluatorOverZoneAroundOrigin(graph);
-        PathFinder pathFinder = new PathFinder(graph, riskEvaluator);
+    void slowerPaceIncreasesTravelTimeAndCostWithoutChangingPathOrRisk() {
+        Graph graph = createTwoJunctionGraph(2.0);
+        RiskEvaluator riskEvaluator =
+                createRiskEvaluator(graph);
 
-        Junction a = graph.getJunction("A");
-        Junction b = graph.getJunction("B");
+        PathFinder pathFinder =
+                new PathFinder(graph, riskEvaluator);
 
-        RouteParams averagePace = new RouteParams(10.0, WalkingPace.AVERAGE, 1.0);
-        RouteParams slowPace = new RouteParams(10.0, WalkingPace.SLOW, 1.0);
+        Junction source = graph.getJunction("A");
+        Junction destination = graph.getJunction("B");
 
-        PathResult averageResult = pathFinder.findPath(a, b, averagePace);
-        PathResult slowResult = pathFinder.findPath(a, b, slowPace);
+        RouteParams averageParams = new RouteParams(
+                10.0,
+                WalkingPace.AVERAGE,
+                1.0
+        );
+
+        RouteParams slowParams = new RouteParams(
+                10.0,
+                WalkingPace.SLOW,
+                1.0
+        );
+
+        PathResult averageResult = pathFinder.findPath(
+                source,
+                destination,
+                averageParams
+        );
+
+        PathResult slowResult = pathFinder.findPath(
+                source,
+                destination,
+                slowParams
+        );
 
         assertTrue(averageResult.hasPath());
         assertTrue(slowResult.hasPath());
 
-        assertEquals(averageResult.getPath(), slowResult.getPath());
-        // RiskProfile's recency weight is computed from System.currentTimeMillis() on each
-        // call, so it drifts by nanoseconds between the two findPath() calls above.
-        assertEquals(averageResult.getMaxRisk(), slowResult.getMaxRisk(), 1e-6);
+        assertEquals(
+                averageResult.getPath(),
+                slowResult.getPath()
+        );
 
-        assertTrue(slowResult.getTotalTime() > averageResult.getTotalTime());
-        assertTrue(slowResult.getTotalCost() > averageResult.getTotalCost());
+        assertEquals(
+                averageResult.getMaxRisk(),
+                slowResult.getMaxRisk(),
+                1e-9
+        );
 
-        double expectedRatio = slowPace.getPaceMultiplier();
-        assertEquals(averageResult.getTotalTime() * expectedRatio, slowResult.getTotalTime(), 1e-9);
-        // Loose delta: totalCost bakes in a risk score sampled at slightly different instants.
-        assertEquals(averageResult.getTotalCost() * expectedRatio, slowResult.getTotalCost(), 1e-6);
+        assertTrue(
+                slowResult.getTotalTime()
+                        > averageResult.getTotalTime()
+        );
+
+        assertTrue(
+                slowResult.getTotalCost()
+                        > averageResult.getTotalCost()
+        );
+
+        double expectedRatio =
+                slowParams.getPaceMultiplier();
+
+        assertEquals(
+                averageResult.getTotalTime() * expectedRatio,
+                slowResult.getTotalTime(),
+                1e-9
+        );
+
+        assertEquals(
+                averageResult.getTotalCost() * expectedRatio,
+                slowResult.getTotalCost(),
+                1e-9
+        );
     }
 
     @Test
-    void slowPaceCanFailAShelterCheckThatAveragePacePasses() {
-        // travelTime chosen so that AVERAGE pace (x1.0) fits maxShelterMinutes,
-        // but SLOW pace (x1.4286) does not.
-        Graph graph = twoJunctionGraph(6.0);
-        RiskEvaluator riskEvaluator = riskEvaluatorOverZoneAroundOrigin(graph);
-        PathFinder pathFinder = new PathFinder(graph, riskEvaluator);
+    void slowPaceCanFailShelterLimitThatAveragePacePasses() {
+        Graph graph = createTwoJunctionGraph(6.0);
+        RiskEvaluator riskEvaluator =
+                createRiskEvaluator(graph);
 
-        Junction a = graph.getJunction("A");
-        Junction b = graph.getJunction("B");
+        PathFinder pathFinder =
+                new PathFinder(graph, riskEvaluator);
 
-        RouteParams averagePace = new RouteParams(6.5, WalkingPace.AVERAGE, 1.0);
-        RouteParams slowPace = new RouteParams(6.5, WalkingPace.SLOW, 1.0);
+        Junction source = graph.getJunction("A");
+        Junction destination = graph.getJunction("B");
 
-        assertTrue(pathFinder.findPath(a, b, averagePace).hasPath());
-        assertFalse(pathFinder.findPath(a, b, slowPace).hasPath());
+        RouteParams averageParams = new RouteParams(
+                6.5,
+                WalkingPace.AVERAGE,
+                1.0
+        );
+
+        RouteParams slowParams = new RouteParams(
+                6.5,
+                WalkingPace.SLOW,
+                1.0
+        );
+
+        PathResult averageResult = pathFinder.findPath(
+                source,
+                destination,
+                averageParams
+        );
+
+        PathResult slowResult = pathFinder.findPath(
+                source,
+                destination,
+                slowParams
+        );
+
+        assertTrue(averageResult.hasPath());
+        assertFalse(slowResult.hasPath());
     }
 }

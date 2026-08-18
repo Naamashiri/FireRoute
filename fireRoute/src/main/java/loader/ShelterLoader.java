@@ -42,7 +42,6 @@ public class ShelterLoader {
         ShelterRepository repository = new ShelterRepository();
         JsonNode root = objectMapper.readTree(inputStream);
 
-        // תמיכה הן במבנה FeatureCollection של GeoJSON והן במערך JSON רגיל
         JsonNode features = root.has("features") ? root.get("features") : root;
 
         if (features.isArray()) {
@@ -59,54 +58,49 @@ public class ShelterLoader {
 
     private Shelter parseShelter(JsonNode node) {
         try {
-            // טיפול ב-GeoJSON Properties מול מבנה שטוח
             JsonNode properties = node.has("properties") ? node.get("properties") : node;
-            
-            // חילוץ מזהה מקלט
+
+            // 1. חילוץ מזהה מקלט (מתאים ל-ms_miklat או UniqueId של עיריית תל אביב)
             String id = "unknown";
-            if (properties.has("id")) {
+            if (properties.has("UniqueId")) {
+                id = properties.get("UniqueId").asText();
+            } else if (properties.has("ms_miklat")) {
+                id = String.valueOf(properties.get("ms_miklat").asText());
+            } else if (properties.has("id")) {
                 id = properties.get("id").asText();
-            } else if (properties.has("SHELT_NUM")) {
-                id = properties.get("SHELT_NUM").asText();
-            } else if (properties.has("shelter_id")) {
-                id = properties.get("shelter_id").asText();
             }
 
-            // חילוץ כתובת
+            // 2. חילוץ כתובת (מתאים ל-Full_Address או shem של העירייה)
             String address = "ללא כתובת";
-            if (properties.has("address")) {
-                address = properties.get("address").asText();
-            } else if (properties.has("STREET_NAME")) {
-                address = properties.get("STREET_NAME").asText();
+            if (properties.has("Full_Address") && !properties.get("Full_Address").asText().isBlank()) {
+                address = properties.get("Full_Address").asText().trim();
+            } else if (properties.has("shem") && !properties.get("shem").isNull()) {
+                address = properties.get("shem").asText().trim();
             }
 
-            // חילוץ קואורדינטות (GeoJSON geometry או שדות lat/lon ישירים)
+            // 3. חילוץ קואורדינטות (ב-GeoJSON של ArcGIS: coordinates = [lon, lat])
             double lat;
             double lon;
 
             if (node.has("geometry") && node.get("geometry").has("coordinates")) {
                 JsonNode coords = node.get("geometry").get("coordinates");
-                // ב-GeoJSON הסדר הוא [lon, lat] (x, y)
                 lon = coords.get(0).asDouble();
                 lat = coords.get(1).asDouble();
             } else if (properties.has("lat") && properties.has("lon")) {
                 lat = properties.get("lat").asDouble();
                 lon = properties.get("lon").asDouble();
-            } else if (properties.has("y") && properties.has("x")) {
-                lat = properties.get("y").asDouble();
-                lon = properties.get("x").asDouble();
             } else {
-                return null; // אין מידע גאוגרפי תקף
+                return null;
             }
 
-            boolean accessible = properties.has("accessible") && properties.get("accessible").asBoolean();
+            // 4. בדיקת נגישות / כשרות לשימוש
+            boolean accessible = properties.has("miklat_mungash") && !properties.get("miklat_mungash").isNull();
 
-            // יצירת GeoPoint עם (x=lon, y=lat)
+            // יצירת GeoPoint עם (lon, lat)
             GeoPoint location = new GeoPoint(lon, lat);
             return new Shelter(id, address, location, accessible);
 
         } catch (Exception e) {
-            // דילוג על רשומה פגומה כדי לא להפיל את כל הטעינה
             return null;
         }
     }

@@ -1,54 +1,104 @@
 package risk;
 
+import java.time.Instant;
+
 /**
- * Stores statistical data about alerts in a specific area.
+ * Represents the risk profile of a geographic area.
+ *
+ * The profile is based on:
+ * - The total number of historical alerts.
+ * - The time of the latest alert.
+ * - Whether an alert is currently active.
  */
-public record RiskProfile(
-        int totalAlerts,
-        double severityIndex,   // must be in [0,1]
-        long lastAlertTimestamp // milliseconds since epoch
-) {
+public class RiskProfile {
 
-    public RiskProfile {
-        if (totalAlerts < 0) {
-            throw new IllegalArgumentException("totalAlerts must be >= 0");
+    private static final double ACTIVE_ALERT_PENALTY = 100.0;
+
+    private final String areaId;
+
+    private int alertsCounter;
+    private Instant lastAlertTime;
+    private boolean activeAlert;
+
+    public RiskProfile(
+            String areaId,
+            int alertsCounter,
+            Instant lastAlertTime,
+            boolean activeAlert
+    ) {
+        if (areaId == null || areaId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "areaId cannot be null or blank"
+            );
         }
-        if (severityIndex < 0.0 || severityIndex > 1.0) {
-            throw new IllegalArgumentException("severityIndex must be in [0,1]");
+
+        if (alertsCounter < 0) {
+            throw new IllegalArgumentException(
+                    "alertsCounter cannot be negative"
+            );
         }
-        if (lastAlertTimestamp > System.currentTimeMillis()) {
-            throw new IllegalArgumentException("lastAlertTimestamp cannot be in the future");
-        }
+
+        this.areaId = areaId;
+        this.alertsCounter = alertsCounter;
+        this.lastAlertTime = lastAlertTime;
+        this.activeAlert = activeAlert;
     }
 
     /**
-     * Calculates a dynamic risk score in [0,1].
-     * Higher score if there were many alerts, high severity,
-     * and the most recent alert was recent.
+     * Records a new alert for this area.
      */
-    public double calculateRiskScore() {
-        double alertsScore = normalizeAlerts(totalAlerts);
-        double recencyWeight = calculateRecencyWeight();
-
-        double baseScore = 0.4 * alertsScore + 0.6 * severityIndex;
-        return baseScore * recencyWeight;
+    public void recordAlert() {
+        alertsCounter++;
+        lastAlertTime = Instant.now();
+        activeAlert = true;
     }
 
     /**
-     * Maps alert count to [0,1] with saturation:
-     * after some point, additional alerts increase score less dramatically.
+     * Marks the current alert as inactive.
      */
-    private static double normalizeAlerts(int alerts) {
-        return 1.0 - Math.exp(-0.1 * alerts);
+    public void clearActiveAlert() {
+        activeAlert = false;
     }
 
     /**
-     * Exponential decay by hours since last alert.
-     * More recent alerts => higher weight.
+     * Calculates the current risk score.
+     *
+     * For the MVP:
+     * - Every historical alert contributes one risk point.
+     * - An active alert adds a large immediate penalty.
      */
-    private double calculateRecencyWeight() {
-        long millisSince = System.currentTimeMillis() - lastAlertTimestamp;
-        double hoursSince = millisSince / (1000.0 * 60 * 60);
-        return Math.exp(-0.05 * hoursSince);
+    public double calculateCurrentRisk() {
+        double historicalRisk = alertsCounter;
+        double currentAlertRisk =
+                activeAlert ? ACTIVE_ALERT_PENALTY : 0.0;
+
+        return historicalRisk + currentAlertRisk;
+    }
+
+    public String getAreaId() {
+        return areaId;
+    }
+
+    public int getAlertsCounter() {
+        return alertsCounter;
+    }
+
+    public Instant getLastAlertTime() {
+        return lastAlertTime;
+    }
+
+    public boolean hasActiveAlert() {
+        return activeAlert;
+    }
+
+    @Override
+    public String toString() {
+        return "RiskProfile{" +
+                "areaId='" + areaId + '\'' +
+                ", alertsCounter=" + alertsCounter +
+                ", lastAlertTime=" + lastAlertTime +
+                ", activeAlert=" + activeAlert +
+                ", riskScore=" + calculateCurrentRisk() +
+                '}';
     }
 }

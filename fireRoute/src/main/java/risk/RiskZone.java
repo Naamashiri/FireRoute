@@ -13,9 +13,7 @@ public record RiskZone(
         GeoPolygon polygon,
         RiskProfile riskProfile
 ) {
-    /**
-     * Compact constructor for validation.
-     */
+    
     public RiskZone {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("id must be non-null and non-empty");
@@ -45,6 +43,6 @@ public record RiskZone(
      * @return the dynamic risk score calculated by the profile.
      */
     public double getRiskScore() {
-        return riskProfile.calculateRiskScore();
+        return riskProfile.calculateCurrentRisk();
     }
 }
