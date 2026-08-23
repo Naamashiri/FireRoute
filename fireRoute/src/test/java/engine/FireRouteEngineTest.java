@@ -189,6 +189,7 @@ class FireRouteEngineTest {
                         List.of(a, b),
                         5.0,
                         5.0,
+                        0.0,
                         0.0
                 );
 
@@ -260,6 +261,7 @@ class FireRouteEngineTest {
         PathResult expected =
                 new PathResult(
                         List.of(a),
+                        0.0,
                         0.0,
                         0.0,
                         0.0
@@ -368,7 +370,8 @@ class FireRouteEngineTest {
                         List.of(a, b),
                         3.0,
                         4.0,
-                        0.2
+                        0.2,
+                        0.0
                 );
 
         pathFinder.emergencyRouteResult =
