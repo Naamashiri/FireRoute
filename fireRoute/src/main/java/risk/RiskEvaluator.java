@@ -31,6 +31,6 @@ public class RiskEvaluator {
      * dictates the overall risk.
      */
     public double getSegmentRisk(RoadSegment segment) {
-        return Math.max(getJunctionRisk(segment.sourceJunction), getJunctionRisk(segment.targetJunction));
+        return Math.max(getJunctionRisk(segment.getSourceJunction()), getJunctionRisk(segment.getTargetJunction()));
     }
 }

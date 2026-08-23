@@ -46,6 +46,9 @@ public class RoadSegment {
     public Junction getTargetJunction() {
         return targetJunction;
     }
+    public Junction getSourceJunction() {
+        return sourceJunction;
+    }
 
     public double getTravelTime() {
         return travelTime;
