@@ -1,0 +1,27 @@
+# Line-ending policy
+# ------------------
+# The repository always stores text files with LF.
+# Without this file, Windows editors commit CRLF and every edit shows up
+# as a whole-file rewrite in the diff.
+
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF in the working tree.
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+mvnw.cmd  text eol=crlf
+
+# Shell scripts and the Maven wrapper must keep LF, even on Windows.
+*.sh  text eol=lf
+mvnw  text eol=lf
+
+# Never apply text conversion to binary files.
+*.jar   binary
+*.class binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
