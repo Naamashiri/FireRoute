@@ -1,10 +1,10 @@
 package risk;
 
 import graph.Junction;
+import graph.RoadSegment;
 
 /**
- * RiskEvaluator provides the logic for quantifying danger levels
- * across the map based on spatial indexing and alert statistics.
+ בהינתן שני צמתים מה רמת הסכנה של הקטע המחבר בינהם
  */
 public class RiskEvaluator {
 
@@ -30,7 +30,7 @@ public class RiskEvaluator {
      * Uses Math.max to ensure the most dangerous part of the segment
      * dictates the overall risk.
      */
-    public double getSegmentRisk(Junction source, Junction target) {
-        return Math.max(getJunctionRisk(source), getJunctionRisk(target));
+    public double getSegmentRisk(RoadSegment segment) {
+        return Math.max(getJunctionRisk(segment.sourceJunction), getJunctionRisk(segment.targetJunction));
     }
 }

@@ -98,7 +98,7 @@ public class Graph {
             throw new IllegalArgumentException("target junction not found: " + toId);
         }
 
-        RoadSegment seg = new RoadSegment(to, travelTime, riskLevel);
+        RoadSegment seg = new RoadSegment(to, from, travelTime, riskLevel);
         from.addOutgoing(seg);
     }
 
