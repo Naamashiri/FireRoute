@@ -56,7 +56,14 @@ public class DijkstraPathFinder implements PathFinder {
         }
 
         if (start.equals(goal)) {
-            return new PathResult(List.of(start), 0.0, 0.0, 0.0);
+            // The user does not move, but is still some distance away from a shelter.
+            return new PathResult(
+                    List.of(start),
+                    0.0,
+                    0.0,
+                    0.0,
+                    minutesToShelter(start, params)
+            );
         }
 
         Map<Junction, Double> dist = new HashMap<>();
@@ -133,6 +140,7 @@ public class DijkstraPathFinder implements PathFinder {
         double totalTime = 0.0;
         double totalCost = 0.0;
         double maxRisk = 0.0;
+        double maxMinutesToShelter = 0.0;
 
         Junction current = start;
         path.add(current);
@@ -151,18 +159,31 @@ public class DijkstraPathFinder implements PathFinder {
             totalTime += params.getPaceMultiplier() * segment.getTravelTime();
             totalCost += routeCostCalculator.calculateCost(segment, params);
             maxRisk = Math.max(maxRisk, riskEvaluator.getSegmentRisk(segment));
+            maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(current, params));
 
             current = next;
             path.add(current);
         }
 
-        return new PathResult(path, totalTime, totalCost, maxRisk);
+        // The loop stops at the shelter itself; measure it too, so every node on the path is covered.
+        maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(current, params));
+
+        return new PathResult(path, totalTime, totalCost, maxRisk, maxMinutesToShelter);
+    }
+
+    /**
+     * Minutes from the given junction to its nearest shelter,
+     * adjusted for the user's walking pace.
+     *
+     * Single definition on purpose: the constraint that filters junctions and
+     * the figure reported to the user must be the exact same calculation.
+     */
+    private double minutesToShelter(Junction junction, RouteParams params) {
+        return params.getPaceMultiplier() * shelterMap.getDistanceToShelter(junction);
     }
 
     private boolean isShelterReachableInTime(Junction junction, RouteParams params) {
-        double baseMinutes = shelterMap.getDistanceToShelter(junction);
-        double actualMinutes = params.getPaceMultiplier() * baseMinutes;
-        return actualMinutes <= params.getMaxShelterMinutes();
+        return minutesToShelter(junction, params) <= params.getMaxShelterMinutes();
     }
 
     private RoadSegment findSegment(Junction from, Junction to) {
@@ -185,6 +206,7 @@ public class DijkstraPathFinder implements PathFinder {
         double totalTime = 0.0;
         double totalCost = 0.0;
         double maxRisk = 0.0;
+        double maxMinutesToShelter = 0.0;
 
         Junction current = goal;
 
@@ -201,14 +223,19 @@ public class DijkstraPathFinder implements PathFinder {
             totalTime += params.getPaceMultiplier() * segment.getTravelTime();
             totalCost += routeCostCalculator.calculateCost(segment, params);
             maxRisk = Math.max(maxRisk, riskEvaluator.getSegmentRisk(segment));
+            maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(current, params));
 
             current = prev;
         }
 
         reversedPath.add(start);
+
+        // The loop stops before start; measure it too, so every node on the path is covered.
+        maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(start, params));
+
         Collections.reverse(reversedPath);
 
-        return new PathResult(reversedPath, totalTime, totalCost, maxRisk);
+        return new PathResult(reversedPath, totalTime, totalCost, maxRisk, maxMinutesToShelter);
     }
 
     public ShelterMap getShelterMap() {
