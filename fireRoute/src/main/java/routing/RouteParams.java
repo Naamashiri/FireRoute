@@ -18,8 +18,8 @@ public class RouteParams {
     }
 
     public RouteParams(double maxShelterMinutes, WalkingPace walkingPace, double userFearFactor) {
-        if (maxShelterMinutes <= 0) {
-            throw new IllegalArgumentException("maxShelterMinutes must be positive");
+        if (maxShelterMinutes < 0) {
+            throw new IllegalArgumentException("maxShelterMinutes must be non-negative");
         }
         if (walkingPace == null) {
             throw new IllegalArgumentException("walkingPace cannot be null");
