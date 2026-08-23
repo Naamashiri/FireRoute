@@ -9,6 +9,8 @@ import risk.RiskEvaluator;
 import risk.RiskProfile;
 import risk.RiskZone;
 import risk.ZoneIndex;
+import shelters.Shelter;
+import shelters.ShelterRepository;
 
 import java.time.Instant;
 import java.util.List;
@@ -85,14 +87,33 @@ class PathFinderWalkingPaceTest {
         return new RiskEvaluator(zoneIndex);
     }
 
+    /**
+     * Shelter placed exactly at the midpoint between A and B, so the
+     * shelter-distance penalty in RouteCostCalculator is always zero
+     * and cost scales purely with pace.
+     */
+    private static RouteCostCalculator createRouteCostCalculator(
+            RiskEvaluator riskEvaluator
+    ) {
+        ShelterRepository shelterRepository = new ShelterRepository();
+        shelterRepository.addShelter(
+                new Shelter("mid", "mid", new GeoPoint(5.0, 5.0), true)
+        );
+        return new RouteCostCalculator(riskEvaluator, shelterRepository);
+    }
+
     @Test
     void slowerPaceIncreasesTravelTimeAndCostWithoutChangingPathOrRisk() {
         Graph graph = createTwoJunctionGraph(2.0);
         RiskEvaluator riskEvaluator =
                 createRiskEvaluator(graph);
 
-        PathFinder pathFinder =
-                new PathFinder(graph, riskEvaluator);
+        DijkstraPathFinder pathFinder =
+                new DijkstraPathFinder(
+                        graph,
+                        riskEvaluator,
+                        createRouteCostCalculator(riskEvaluator)
+                );
 
         Junction source = graph.getJunction("A");
         Junction destination = graph.getJunction("B");
@@ -167,8 +188,12 @@ class PathFinderWalkingPaceTest {
         RiskEvaluator riskEvaluator =
                 createRiskEvaluator(graph);
 
-        PathFinder pathFinder =
-                new PathFinder(graph, riskEvaluator);
+        DijkstraPathFinder pathFinder =
+                new DijkstraPathFinder(
+                        graph,
+                        riskEvaluator,
+                        createRouteCostCalculator(riskEvaluator)
+                );
 
         Junction source = graph.getJunction("A");
         Junction destination = graph.getJunction("B");
