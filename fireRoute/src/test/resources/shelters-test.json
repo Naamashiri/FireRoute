@@ -1,0 +1,5 @@
+[
+  { "id": "S1", "Full_Address": "Dizengoff 100, Tel Aviv", "lat": 32.0780, "lon": 34.7740 },
+  { "id": "S2", "Full_Address": "Rothschild 20, Tel Aviv",  "lat": 32.0630, "lon": 34.7720 },
+  { "id": "S3", "Full_Address": "Habima Square, Tel Aviv",  "lat": 32.0720, "lon": 34.7790 }
+]
