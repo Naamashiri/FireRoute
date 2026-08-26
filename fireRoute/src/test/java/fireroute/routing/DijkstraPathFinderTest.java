@@ -378,7 +378,10 @@ class DijkstraPathFinderTest {
         RouteParams params =
                 new RouteParams(
                         WalkingPace.AVERAGE,
-                        0.0
+                        0.0,
+                        // every junction on the route must be within half a minute of
+                        // cover, which is what makes UNSAFE/START fail the constraint
+                        0.5
                 );
 
         PathResult result =
@@ -420,7 +423,10 @@ class DijkstraPathFinderTest {
         RouteParams params =
                 new RouteParams(
                         WalkingPace.AVERAGE,
-                        0.0
+                        0.0,
+                        // every junction on the route must be within half a minute of
+                        // cover, which is what makes UNSAFE/START fail the constraint
+                        0.5
                 );
 
         PathResult result =

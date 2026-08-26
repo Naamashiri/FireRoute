@@ -47,7 +47,15 @@ public class RouteMapper {
                 ? request.fearFactor()
                 : defaults.getFearFactor();
 
-        return new RouteParams(toDomainPace(request.walkingPace()), fearFactor);
+        double maxShelterMinutes = request.maxShelterMinutes() != null
+                ? request.maxShelterMinutes()
+                : defaults.getMaxShelterMinutes();
+
+        return new RouteParams(
+                toDomainPace(request.walkingPace()),
+                fearFactor,
+                maxShelterMinutes
+        );
     }
 
     public RouteResponse toRouteResponse(PathResult pathResult) {
