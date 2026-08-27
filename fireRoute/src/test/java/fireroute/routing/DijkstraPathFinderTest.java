@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import fireroute.domain.risk.RiskEvaluator;
-import fireroute.domain.risk.ZoneIndex;
+import fireroute.domain.risk.RiskProfile;
 import fireroute.domain.shelter.ShelterRepository;
 
 import java.util.List;
@@ -17,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class DijkstraPathFinderTest {
 
     private Graph graph;
-    private ZoneIndex zoneIndex;
     private RiskEvaluator riskEvaluator;
     private ShelterRepository shelterRepository;
     private RouteCostCalculator routeCostCalculator;
@@ -25,8 +24,9 @@ class DijkstraPathFinderTest {
     @BeforeEach
     void setUp() {
         graph = new Graph();
-        zoneIndex = new ZoneIndex();
-        riskEvaluator = new RiskEvaluator(zoneIndex);
+        // A quiet area: no alerts recorded, none active, so risk is zero and
+        // cost is pure walking time. Tests that need risk record an alert.
+        riskEvaluator = new RiskEvaluator(new RiskProfile("test-area", 0, null, false));
         shelterRepository = new ShelterRepository();
 
         routeCostCalculator =
@@ -398,8 +398,8 @@ class DijkstraPathFinderTest {
     }
 
     @Test
-    @DisplayName("Should reject route when start violates shelter constraint")
-    void rejectsUnsafeStart() {
+    @DisplayName("Should still route from an unsafe start, flagging the relaxed constraint")
+    void routesFromAnUnsafeStartAndFlagsIt() {
 
         Junction start = new Junction("START", false);
         Junction goal = new Junction("GOAL", true);
@@ -436,8 +436,22 @@ class DijkstraPathFinderTest {
                         params
                 );
 
-        assertTrue(
-                result.getPath().isEmpty()
+        // The user does not choose where they are standing. Refusing to answer
+        // would leave them with nothing in exactly the situation the service
+        // exists for, so the route is returned and marked instead.
+        assertFalse(
+                result.getPath().isEmpty(),
+                "an exposed start must still get a route"
+        );
+
+        assertEquals(
+                List.of(start, goal),
+                result.getPath()
+        );
+
+        assertFalse(
+                result.isShelterConstraintSatisfied(),
+                "the route exceeds the requested shelter limit and must say so"
         );
     }
 

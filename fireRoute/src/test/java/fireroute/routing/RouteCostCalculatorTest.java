@@ -1,7 +1,6 @@
 package fireroute.routing;
 
 import fireroute.domain.geo.GeoPoint;
-import fireroute.domain.geo.GeoPolygon;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.graph.Junction;
 import fireroute.domain.graph.RoadSegment;
@@ -10,8 +9,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import fireroute.domain.risk.RiskEvaluator;
 import fireroute.domain.risk.RiskProfile;
-import fireroute.domain.risk.RiskZone;
-import fireroute.domain.risk.ZoneIndex;
 import fireroute.domain.shelter.Shelter;
 import fireroute.domain.shelter.ShelterRepository;
 
@@ -23,15 +20,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class RouteCostCalculatorTest {
 
     private ShelterRepository shelterRepository;
-    private ZoneIndex zoneIndex;
+    private RiskProfile areaProfile;
     private RiskEvaluator riskEvaluator;
     private RouteCostCalculator calculator;
 
     @BeforeEach
     void setUp() {
         shelterRepository = new ShelterRepository();
-        zoneIndex = new ZoneIndex();
-        riskEvaluator = new RiskEvaluator(zoneIndex);
+        // Starts quiet; the tests that need a risky segment record an alert.
+        areaProfile = new RiskProfile("test-area", 0, null, false);
+        riskEvaluator = new RiskEvaluator(areaProfile);
 
         calculator = new RouteCostCalculator(
                 riskEvaluator,
@@ -208,36 +206,8 @@ class RouteCostCalculatorTest {
         graph.addJunction(a);
         graph.addJunction(b);
 
-        RiskProfile profile =
-                new RiskProfile(
-                        "area-1",
-                        5,
-                        Instant.now(),
-                        false
-                );
-
-        GeoPolygon polygon =
-                new GeoPolygon(
-                        List.of(
-                                new GeoPoint(32.0790, 34.7790),
-                                new GeoPoint(32.0810, 34.7790),
-                                new GeoPoint(32.0810, 34.7810),
-                                new GeoPoint(32.0790, 34.7810)
-                        )
-                );
-
-        RiskZone zone =
-                new RiskZone(
-                        "zone-1",
-                        "Test Risk Zone",
-                        polygon,
-                        profile
-                );
-
-        zoneIndex.build(
-                graph,
-                List.of(zone)
-        );
+        // An alert is live in the area, which is what makes the segment risky.
+        areaProfile.recordAlert();
 
         RouteParams params =
                 new RouteParams(
@@ -310,33 +280,7 @@ class RouteCostCalculatorTest {
         graph.addJunction(a);
         graph.addJunction(b);
 
-        RiskProfile profile =
-                new RiskProfile(
-                        "area-1",
-                        5,
-                        Instant.now(),
-                        false
-                );
-
-        RiskZone zone =
-                new RiskZone(
-                        "zone-1",
-                        "Risk Zone",
-                        new GeoPolygon(
-                                List.of(
-                                        new GeoPoint(32.0790, 34.7790),
-                                        new GeoPoint(32.0810, 34.7790),
-                                        new GeoPoint(32.0810, 34.7810),
-                                        new GeoPoint(32.0790, 34.7810)
-                                )
-                        ),
-                        profile
-                );
-
-        zoneIndex.build(
-                graph,
-                List.of(zone)
-        );
+        areaProfile.recordAlert();
 
         RouteParams lowFear =
                 new RouteParams(

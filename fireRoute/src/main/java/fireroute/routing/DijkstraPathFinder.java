@@ -51,21 +51,51 @@ public class DijkstraPathFinder implements PathFinder {
             throw new IllegalArgumentException("start, goal and params must be non-null");
         }
 
-        if (!isShelterReachableInTime(start, params) || !isShelterReachableInTime(goal, params)) {
-            return PathResult.noPath();
-        }
-
         if (start.equals(goal)) {
             // The user does not move, but is still some distance away from a shelter.
+            double minutes = minutesToShelter(start, params);
             return new PathResult(
                     List.of(start),
                     0.0,
                     0.0,
                     0.0,
-                    minutesToShelter(start, params)
+                    minutes,
+                    minutes <= params.getMaxShelterMinutes()
             );
         }
 
+        /*
+         * Two passes.
+         *
+         * The first refuses to route through any junction further from cover
+         * than the request allows. That is the whole point of the constraint:
+         * given a choice, take the sheltered way even if it is longer.
+         *
+         * The second drops the filter and searches again. It exists because
+         * "no route" is the wrong answer to give someone standing in an exposed
+         * street during an alert — they did not choose where they are, and a
+         * walk they can judge for themselves beats no walk at all. The result
+         * reports shelterConstraintSatisfied so the caller warns rather than
+         * presenting an exposed route as a safe one.
+         *
+         * Endpoints are never filtered in either pass. Which junctions a route
+         * may pass through is a routing decision; where the user happens to be
+         * standing is not.
+         */
+        PathResult strict = search(start, goal, params, true);
+        if (strict.hasPath()) {
+            return strict;
+        }
+
+        return search(start, goal, params, false);
+    }
+
+    private PathResult search(
+            Junction start,
+            Junction goal,
+            RouteParams params,
+            boolean enforceShelterConstraint
+    ) {
         Map<Junction, Double> dist = new HashMap<>();
         Map<Junction, Junction> previous = new HashMap<>();
         Map<Junction, RoadSegment> previousSegment = new HashMap<>();
@@ -102,7 +132,7 @@ public class DijkstraPathFinder implements PathFinder {
                     continue;
                 }
 
-                if (!isShelterReachableInTime(v, params)) {
+                if (enforceShelterConstraint && !isShelterReachableInTime(v, params)) {
                     continue;
                 }
 
@@ -168,7 +198,14 @@ public class DijkstraPathFinder implements PathFinder {
         // The loop stops at the shelter itself; measure it too, so every node on the path is covered.
         maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(current, params));
 
-        return new PathResult(path, totalTime, totalCost, maxRisk, maxMinutesToShelter);
+        return new PathResult(
+                path,
+                totalTime,
+                totalCost,
+                maxRisk,
+                maxMinutesToShelter,
+                maxMinutesToShelter <= params.getMaxShelterMinutes()
+        );
     }
 
     /**
@@ -235,7 +272,14 @@ public class DijkstraPathFinder implements PathFinder {
 
         Collections.reverse(reversedPath);
 
-        return new PathResult(reversedPath, totalTime, totalCost, maxRisk, maxMinutesToShelter);
+        return new PathResult(
+                reversedPath,
+                totalTime,
+                totalCost,
+                maxRisk,
+                maxMinutesToShelter,
+                maxMinutesToShelter <= params.getMaxShelterMinutes()
+        );
     }
 
     public ShelterMap getShelterMap() {

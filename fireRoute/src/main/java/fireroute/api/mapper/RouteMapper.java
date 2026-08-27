@@ -2,6 +2,7 @@ package fireroute.api.mapper;
 
 import fireroute.api.dto.RoutePoint;
 import fireroute.api.dto.RouteOptions;
+import fireroute.api.dto.RouteFailureReason;
 import fireroute.api.dto.RouteResponse;
 import fireroute.api.dto.WalkingPaceDto;
 import fireroute.routing.PathResult;
@@ -66,7 +67,14 @@ public class RouteMapper {
         }
 
         if (!pathResult.hasPath()) {
-            return new RouteResponse(false, 0.0, List.of(), 0.0);
+            return new RouteResponse(
+                    false,
+                    RouteFailureReason.NO_ROUTE_EXISTS,
+                    0.0,
+                    List.of(),
+                    0.0,
+                    false
+            );
         }
 
         List<RoutePoint> points = pathResult.getPath().stream()
@@ -82,9 +90,11 @@ public class RouteMapper {
 
         return new RouteResponse(
                 true,
+                RouteFailureReason.NONE,
                 pathResult.getTotalTime(),
                 points,
-                pathResult.getMaxMinutesToShelter()
+                pathResult.getMaxMinutesToShelter(),
+                pathResult.isShelterConstraintSatisfied()
         );
     }
 

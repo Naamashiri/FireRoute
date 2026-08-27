@@ -11,6 +11,8 @@ import fireroute.routing.RouteParams;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 /**
  * HTTP entry point for route calculation.
@@ -62,6 +64,8 @@ public class RoutingController {
 
         return routeMapper.toRouteResponse(pathResult);
     }
+
+    
 
     /**
      * Routes to the nearest shelter rather than to a chosen destination.
