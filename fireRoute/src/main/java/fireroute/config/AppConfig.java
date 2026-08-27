@@ -3,11 +3,9 @@ package fireroute.config;
 import fireroute.application.FireRouteEngine;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.risk.RiskEvaluator;
-import fireroute.domain.risk.RiskZone;
-import fireroute.domain.risk.ZoneIndex;
+import fireroute.domain.risk.RiskProfile;
 import fireroute.domain.shelter.ShelterRepository;
 import fireroute.infrastructure.loader.JsonDataLoader;
-import fireroute.infrastructure.loader.JsonRiskZoneLoader;
 import fireroute.infrastructure.loader.ShelterLoader;
 import fireroute.routing.DijkstraPathFinder;
 import fireroute.routing.PathFinder;
@@ -18,8 +16,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
 
 /**
  * Assembles the domain object graph and hands it to the container.
@@ -50,7 +46,7 @@ public class AppConfig {
      */
     @Bean
     public Graph graph(
-            @Value("${fireroute.data.map:static/map.json}") String mapResource
+            @Value("${fireroute.data.map:map.json}") String mapResource
     ) throws IOException {
         return new JsonDataLoader().loadGraphFromResources(mapResource);
     }
@@ -60,38 +56,31 @@ public class AppConfig {
      */
     @Bean
     public ShelterRepository shelterRepository(
-            @Value("${fireroute.data.shelters:static/shelters.json}") String sheltersResource
+            @Value("${fireroute.data.shelters:shelters.json}") String sheltersResource
     ) throws IOException {
         return new ShelterLoader().loadFromResources(sheltersResource);
     }
 
     /**
-     * Maps every junction to the risk zone containing it.
+     * Alert state for the single area this service covers.
      *
-     * ZoneIndex is not usable straight out of its constructor — build() is what
-     * populates it. It is called here so that a half-initialised index can never
-     * escape into the rest of the system, where an empty map would silently read
-     * as "no risk anywhere".
+     * Mutable and shared on purpose: it is the one thing in the domain that
+     * changes while the application runs. Recording an alert here is what makes
+     * the next route calculation avoid the area, without rebuilding anything.
      *
-     * JsonRiskZoneLoader is still a stub returning an empty list, so today this
-     * yields an index with no zones. The seam is what matters: replacing the stub
-     * changes nothing outside the loader.
+     * It starts quiet — no alerts recorded, none active — so a freshly started
+     * service routes on walking time alone until something tells it otherwise.
      */
     @Bean
-    public ZoneIndex zoneIndex(
-            Graph graph,
-            @Value("${fireroute.data.riskZones:static/alerts.json}") String riskZonesResource
+    public RiskProfile areaRiskProfile(
+            @Value("${fireroute.area.id:ever-hayarkon}") String areaId
     ) {
-        List<RiskZone> zones = new JsonRiskZoneLoader().load(Path.of(riskZonesResource));
-
-        ZoneIndex zoneIndex = new ZoneIndex();
-        zoneIndex.build(graph, zones);
-        return zoneIndex;
+        return new RiskProfile(areaId, 0, null, false);
     }
 
     @Bean
-    public RiskEvaluator riskEvaluator(ZoneIndex zoneIndex) {
-        return new RiskEvaluator(zoneIndex);
+    public RiskEvaluator riskEvaluator(RiskProfile areaRiskProfile) {
+        return new RiskEvaluator(areaRiskProfile);
     }
 
     @Bean

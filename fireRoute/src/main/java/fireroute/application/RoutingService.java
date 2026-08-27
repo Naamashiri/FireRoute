@@ -1,6 +1,5 @@
 package fireroute.application;
 
-import fireroute.application.FireRouteEngine;
 import fireroute.routing.PathResult;
 import fireroute.routing.RouteParams;
 import org.springframework.stereotype.Service;

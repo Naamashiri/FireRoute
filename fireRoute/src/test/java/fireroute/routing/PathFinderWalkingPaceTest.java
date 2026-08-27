@@ -1,14 +1,11 @@
 package fireroute.routing;
 
 import fireroute.domain.geo.GeoPoint;
-import fireroute.domain.geo.GeoPolygon;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.graph.Junction;
 import org.junit.jupiter.api.Test;
 import fireroute.domain.risk.RiskEvaluator;
 import fireroute.domain.risk.RiskProfile;
-import fireroute.domain.risk.RiskZone;
-import fireroute.domain.risk.ZoneIndex;
 import fireroute.domain.shelter.Shelter;
 import fireroute.domain.shelter.ShelterRepository;
 
@@ -52,39 +49,19 @@ class PathFinderWalkingPaceTest {
     }
 
     /**
-     * Creates a risk evaluator with a danger zone surrounding
-     * junction A. Junction B is outside the zone.
+     * A risk evaluator for an area with a history of alerts but none active,
+     * so every segment carries the same non-zero risk and cost differences come
+     * purely from pace.
      */
-    private static RiskEvaluator createRiskEvaluator(
-            Graph graph
-    ) {
-        GeoPolygon dangerZonePolygon = new GeoPolygon(
-                List.of(
-                        new GeoPoint(-1.0, -1.0),
-                        new GeoPoint(1.0, -1.0),
-                        new GeoPoint(1.0, 1.0),
-                        new GeoPoint(-1.0, 1.0)
-                )
-        );
-
-        RiskProfile riskProfile = new RiskProfile(
+    private static RiskEvaluator createRiskEvaluator() {
+        RiskProfile areaProfile = new RiskProfile(
                 "area-10",
                 8,
                 Instant.now(),
                 false
         );
 
-        RiskZone riskZone = new RiskZone(
-                "zone-1",
-                "danger-zone",
-                dangerZonePolygon,
-                riskProfile
-        );
-
-        ZoneIndex zoneIndex = new ZoneIndex();
-        zoneIndex.build(graph, List.of(riskZone));
-
-        return new RiskEvaluator(zoneIndex);
+        return new RiskEvaluator(areaProfile);
     }
 
     /**
@@ -106,7 +83,7 @@ class PathFinderWalkingPaceTest {
     void slowerPaceIncreasesTravelTimeAndCostWithoutChangingPathOrRisk() {
         Graph graph = createTwoJunctionGraph(2.0);
         RiskEvaluator riskEvaluator =
-                createRiskEvaluator(graph);
+                createRiskEvaluator();
 
         DijkstraPathFinder pathFinder =
                 new DijkstraPathFinder(
@@ -181,10 +158,10 @@ class PathFinderWalkingPaceTest {
     }
 
     @Test
-    void slowPaceCanFailShelterLimitThatAveragePacePasses() {
+    void slowPaceCanBreachShelterLimitThatAveragePaceRespects() {
         Graph graph = createTwoJunctionGraph(6.0);
         RiskEvaluator riskEvaluator =
-                createRiskEvaluator(graph);
+                createRiskEvaluator();
 
         DijkstraPathFinder pathFinder =
                 new DijkstraPathFinder(
@@ -218,7 +195,20 @@ class PathFinderWalkingPaceTest {
                 slowParams
         );
 
+        // Same road, same limit: at an average pace the walker is inside it, at a
+        // slow pace the identical distance takes long enough to breach it. Both
+        // still get a route; only the verdict on its safety differs.
         assertTrue(averageResult.hasPath());
-        assertFalse(slowResult.hasPath());
+        assertTrue(slowResult.hasPath());
+
+        assertTrue(
+                averageResult.isShelterConstraintSatisfied(),
+                "an average pace stays within the shelter limit here"
+        );
+
+        assertFalse(
+                slowResult.isShelterConstraintSatisfied(),
+                "a slow pace turns the same road into an exposed one"
+        );
     }
 }

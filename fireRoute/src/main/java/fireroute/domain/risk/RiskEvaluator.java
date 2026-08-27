@@ -1,36 +1,38 @@
 package fireroute.domain.risk;
 
-import fireroute.domain.graph.Junction;
 import fireroute.domain.graph.RoadSegment;
 
 /**
- בהינתן שני צמתים מה רמת הסכנה של הקטע המחבר בינהם
+ * How dangerous is it to walk a given segment right now.
+ *
+ * The service covers a single Home Front Command alert area, so there is one
+ * risk profile and every segment inside the graph shares it: an alert applies to
+ * the whole area at once, not to individual streets. The segment is still a
+ * parameter because that is the question the routing code asks — "how risky is
+ * this edge" — and the day the service covers more than one area, only this
+ * class has to learn the difference.
  */
 public class RiskEvaluator {
 
-    private final ZoneIndex zoneIndex;
+    private final RiskProfile areaProfile;
 
-    public RiskEvaluator(ZoneIndex zoneIndex) {
-        if (zoneIndex == null) {
-            throw new IllegalArgumentException("zoneIndex must be non-null");
+    public RiskEvaluator(RiskProfile areaProfile) {
+        if (areaProfile == null) {
+            throw new IllegalArgumentException("areaProfile must be non-null");
         }
-        this.zoneIndex = zoneIndex;
+        this.areaProfile = areaProfile;
     }
 
     /**
-     * Calculates the risk score for a single junction (0.0 to 1.0).
-     */
-    public double getJunctionRisk(Junction junction) {
-        RiskZone zone = zoneIndex.getZone(junction);
-        return (zone == null) ? 0.0 : zone.getRiskScore();
-    }
-
-    /**
-     * Estimates the risk for the segment connecting two junctions.
-     * Uses Math.max to ensure the most dangerous part of the segment
-     * dictates the overall risk.
+     * Current risk score for the segment.
+     *
+     * Read live rather than cached: the profile is updated when an alert starts
+     * or ends, and a route calculated a second later must reflect that.
      */
     public double getSegmentRisk(RoadSegment segment) {
-        return Math.max(getJunctionRisk(segment.getSourceJunction()), getJunctionRisk(segment.getTargetJunction()));
+        if (segment == null) {
+            throw new IllegalArgumentException("segment must be non-null");
+        }
+        return areaProfile.calculateCurrentRisk();
     }
 }
