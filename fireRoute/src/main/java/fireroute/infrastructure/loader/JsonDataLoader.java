@@ -91,10 +91,7 @@ public class JsonDataLoader {
             String toId = rNode.get("to").asText();
             double travelTime = rNode.get("travelTime").asDouble();
 
-            // optional field; default = 0.0
-            double riskLevel = rNode.has("riskLevel") ? rNode.get("riskLevel").asDouble() : 0.0;
-
-            graph.addRoadSegment(fromId, toId, travelTime, riskLevel);
+            graph.addRoadSegment(fromId, toId, travelTime);
         }
 
         return graph;

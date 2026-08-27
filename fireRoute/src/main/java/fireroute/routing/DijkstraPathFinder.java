@@ -3,7 +3,6 @@ package fireroute.routing;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.graph.Junction;
 import fireroute.domain.graph.RoadSegment;
-import fireroute.domain.risk.RiskEvaluator;
 
 import java.util.*;
 
@@ -15,24 +14,25 @@ public class DijkstraPathFinder implements PathFinder {
 
     private final Graph graph;
     private final ShelterMap shelterMap;
-    private final RiskEvaluator riskEvaluator;
     private final RouteCostCalculator routeCostCalculator;
 
+    /**
+     * ShelterMap is injected rather than built here: the cost calculator measures
+     * exposure with the same map, and computing it twice would both waste the
+     * startup work and risk the two drifting apart.
+     */
     public DijkstraPathFinder(
             Graph graph,
-            RiskEvaluator riskEvaluator,
+            ShelterMap shelterMap,
             RouteCostCalculator routeCostCalculator
     ) {
-        if (graph == null || riskEvaluator == null || routeCostCalculator == null) {
-            throw new IllegalArgumentException("graph, riskEvaluator and routeCostCalculator must be non-null");
+        if (graph == null || shelterMap == null || routeCostCalculator == null) {
+            throw new IllegalArgumentException("graph, shelterMap and routeCostCalculator must be non-null");
         }
 
         this.graph = graph;
-        this.riskEvaluator = riskEvaluator;
+        this.shelterMap = shelterMap;
         this.routeCostCalculator = routeCostCalculator;
-
-        this.shelterMap = new ShelterMap(graph);
-        this.shelterMap.compute();
     }
 
     private static class State {
@@ -56,7 +56,6 @@ public class DijkstraPathFinder implements PathFinder {
             double minutes = minutesToShelter(start, params);
             return new PathResult(
                     List.of(start),
-                    0.0,
                     0.0,
                     0.0,
                     minutes,
@@ -169,7 +168,6 @@ public class DijkstraPathFinder implements PathFinder {
         List<Junction> path = new ArrayList<>();
         double totalTime = 0.0;
         double totalCost = 0.0;
-        double maxRisk = 0.0;
         double maxMinutesToShelter = 0.0;
 
         Junction current = start;
@@ -188,7 +186,6 @@ public class DijkstraPathFinder implements PathFinder {
 
             totalTime += params.getPaceMultiplier() * segment.getTravelTime();
             totalCost += routeCostCalculator.calculateCost(segment, params);
-            maxRisk = Math.max(maxRisk, riskEvaluator.getSegmentRisk(segment));
             maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(current, params));
 
             current = next;
@@ -202,7 +199,6 @@ public class DijkstraPathFinder implements PathFinder {
                 path,
                 totalTime,
                 totalCost,
-                maxRisk,
                 maxMinutesToShelter,
                 maxMinutesToShelter <= params.getMaxShelterMinutes()
         );
@@ -242,7 +238,6 @@ public class DijkstraPathFinder implements PathFinder {
         List<Junction> reversedPath = new ArrayList<>();
         double totalTime = 0.0;
         double totalCost = 0.0;
-        double maxRisk = 0.0;
         double maxMinutesToShelter = 0.0;
 
         Junction current = goal;
@@ -259,7 +254,6 @@ public class DijkstraPathFinder implements PathFinder {
 
             totalTime += params.getPaceMultiplier() * segment.getTravelTime();
             totalCost += routeCostCalculator.calculateCost(segment, params);
-            maxRisk = Math.max(maxRisk, riskEvaluator.getSegmentRisk(segment));
             maxMinutesToShelter = Math.max(maxMinutesToShelter, minutesToShelter(current, params));
 
             current = prev;
@@ -276,7 +270,6 @@ public class DijkstraPathFinder implements PathFinder {
                 reversedPath,
                 totalTime,
                 totalCost,
-                maxRisk,
                 maxMinutesToShelter,
                 maxMinutesToShelter <= params.getMaxShelterMinutes()
         );

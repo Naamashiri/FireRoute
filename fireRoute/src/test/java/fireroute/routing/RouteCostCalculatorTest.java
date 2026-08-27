@@ -1,646 +1,205 @@
 package fireroute.routing;
 
-import fireroute.domain.geo.GeoPoint;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.graph.Junction;
 import fireroute.domain.graph.RoadSegment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import fireroute.domain.risk.RiskEvaluator;
-import fireroute.domain.risk.RiskProfile;
-import fireroute.domain.shelter.Shelter;
-import fireroute.domain.shelter.ShelterRepository;
 
-import java.time.Instant;
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
-
+/**
+ * The cost of a segment is walking time plus fearFactor times the minutes of
+ * exposure beyond the 1.5-minute safe threshold, where exposure is the walking
+ * time from the segment's target junction to the nearest shelter.
+ *
+ * Test graph, one direction:
+ *
+ * <pre>
+ *   A --5.0--> B --3.0--> S (shelter)
+ * </pre>
+ *
+ * so exposure is 8.0 minutes at A, 3.0 at B and 0.0 at S. Every expected value
+ * below is derived from those three numbers by hand rather than from the code.
+ */
 class RouteCostCalculatorTest {
 
-    private ShelterRepository shelterRepository;
-    private RiskProfile areaProfile;
-    private RiskEvaluator riskEvaluator;
+    private static final double SAFE_MINUTES = 1.5;
+
+    private Graph graph;
+    private ShelterMap shelterMap;
     private RouteCostCalculator calculator;
 
     @BeforeEach
     void setUp() {
-        shelterRepository = new ShelterRepository();
-        // Starts quiet; the tests that need a risky segment record an alert.
-        areaProfile = new RiskProfile("test-area", 0, null, false);
-        riskEvaluator = new RiskEvaluator(areaProfile);
+        graph = new Graph();
+        graph.addJunction(new Junction("A", 34.77, 32.07, false));
+        graph.addJunction(new Junction("B", 34.78, 32.07, false));
+        graph.addJunction(new Junction("S", 34.79, 32.07, true));
 
-        calculator = new RouteCostCalculator(
-                riskEvaluator,
-                shelterRepository
-        );
+        graph.addRoadSegment("A", "B", 5.0);
+        graph.addRoadSegment("B", "S", 3.0);
+
+        shelterMap = new ShelterMap(graph);
+        shelterMap.compute();
+
+        calculator = new RouteCostCalculator(shelterMap);
+    }
+
+    private RoadSegment segment(String fromId, String toId) {
+        for (RoadSegment road : graph.getJunction(fromId).getOutGoingRoads()) {
+            if (road.getTargetJunction().getId().equals(toId)) {
+                return road;
+            }
+        }
+        throw new IllegalStateException("no segment " + fromId + " -> " + toId);
     }
 
     // ---------------------------------------------------------
-    // Constructor / argument validation
+    // Validation
     // ---------------------------------------------------------
 
     @Test
-    @DisplayName("Constructor should reject null dependencies")
-    void constructorRejectsNullDependencies() {
-
+    @DisplayName("Constructor should reject a null shelter map")
+    void constructorRejectsNullShelterMap() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new RouteCostCalculator(
-                        null,
-                        shelterRepository
-                )
-        );
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new RouteCostCalculator(
-                        riskEvaluator,
-                        null
-                )
+                () -> new RouteCostCalculator(null)
         );
     }
 
     @Test
     @DisplayName("calculateCost should reject null arguments")
     void calculateCostRejectsNullArguments() {
-
-        Junction a = new Junction("A", false);
-        Junction b = new Junction("B", false);
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 5.0, 0.0);
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        1.0
-                );
+        RoadSegment ab = segment("A", "B");
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> calculator.calculateCost(null, params)
+                () -> calculator.calculateCost(null, new RouteParams())
         );
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> calculator.calculateCost(segment, null)
+                () -> calculator.calculateCost(ab, null)
         );
     }
 
     // ---------------------------------------------------------
-    // Travel time / walking pace
+    // The two terms of the formula
     // ---------------------------------------------------------
 
     @Test
-    @DisplayName("Fear factor 0 should leave only actual walking time")
-    void zeroFearFactorReturnsOnlyActualTravelTime() {
-
-        Junction a = new Junction("A", false);
-        Junction b = new Junction("B", false);
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 5.0, 0.0);
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        0.0
-                );
-
-        double cost =
-                calculator.calculateCost(segment, params);
-
-        double expected =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier();
-
-        assertEquals(expected, cost, 1e-9);
-    }
-
-    @Test
-    @DisplayName("Slower walking pace should increase route cost")
-    void slowerWalkingPaceIncreasesCost() {
-
-        Junction a = new Junction("A", false);
-        Junction b = new Junction("B", true);
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 10.0, 0.0);
-
-        RouteParams average =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        0.0
-                );
-
-        RouteParams slow =
-                new RouteParams(
-                        WalkingPace.SLOW,
-                        0.0
-                );
-
-        double averageCost =
-                calculator.calculateCost(segment, average);
-
-        double slowCost =
-                calculator.calculateCost(segment, slow);
-
-        assertTrue(slowCost > averageCost);
+    @DisplayName("Fear factor zero should leave only walking time")
+    void zeroFearFactorLeavesOnlyWalkingTime() {
+        RouteParams params = new RouteParams(WalkingPace.AVERAGE, 0.0);
 
         assertEquals(
-                averageCost * slow.getPaceMultiplier(),
-                slowCost,
+                5.0,
+                calculator.calculateCost(segment("A", "B"), params),
+                1e-9,
+                "with no fear, exposure is free and only the 5-minute walk counts"
+        );
+    }
+
+    @Test
+    @DisplayName("Exposure beyond the safe threshold should be charged")
+    void exposureBeyondSafeThresholdIsCharged() {
+        // Target B sits 3.0 minutes from the shelter, so 1.5 of those are excess.
+        RouteParams params = new RouteParams(WalkingPace.AVERAGE, 1.0);
+
+        assertEquals(
+                5.0 + 1.0 * (3.0 - SAFE_MINUTES),
+                calculator.calculateCost(segment("A", "B"), params),
+                1e-9
+        );
+    }
+
+    @Test
+    @DisplayName("A segment ending at a shelter should carry no exposure penalty")
+    void segmentEndingAtShelterHasNoPenalty() {
+        RouteParams params = new RouteParams(WalkingPace.AVERAGE, 5.0);
+
+        assertEquals(
+                3.0,
+                calculator.calculateCost(segment("B", "S"), params),
+                1e-9,
+                "exposure at the shelter is zero, so even a very cautious walker pays nothing extra"
+        );
+    }
+
+    @Test
+    @DisplayName("Higher fear factor should raise the cost of an exposed segment")
+    void higherFearFactorRaisesExposedSegmentCost() {
+        RoadSegment exposed = segment("A", "B");
+
+        double cautious = calculator.calculateCost(
+                exposed, new RouteParams(WalkingPace.AVERAGE, 4.0));
+        double relaxed = calculator.calculateCost(
+                exposed, new RouteParams(WalkingPace.AVERAGE, 1.0));
+
+        assertTrue(cautious > relaxed);
+    }
+
+    @Test
+    @DisplayName("Fear factor should not change the cost of a sheltered segment")
+    void fearFactorDoesNotChangeShelteredSegmentCost() {
+        RoadSegment sheltered = segment("B", "S");
+
+        assertEquals(
+                calculator.calculateCost(sheltered, new RouteParams(WalkingPace.AVERAGE, 0.0)),
+                calculator.calculateCost(sheltered, new RouteParams(WalkingPace.AVERAGE, 9.0)),
                 1e-9
         );
     }
 
     // ---------------------------------------------------------
-    // Risk
+    // Pace
     // ---------------------------------------------------------
 
     @Test
-    @DisplayName("Risk should increase cost according to fear factor")
-    void riskIncreasesCostAccordingToFearFactor() {
+    @DisplayName("A slower pace should raise both walking time and exposure")
+    void slowerPaceRaisesCost() {
+        RoadSegment ab = segment("A", "B");
 
-        Junction a =
-                new Junction(
-                        "A",
-                        32.0800,
-                        34.7800,
-                        false
-                );
+        double average = calculator.calculateCost(
+                ab, new RouteParams(WalkingPace.AVERAGE, 1.0));
+        double slow = calculator.calculateCost(
+                ab, new RouteParams(WalkingPace.SLOW, 1.0));
 
-        Junction b =
-                new Junction(
-                        "B",
-                        32.0802,
-                        34.7802,
-                        false
-                );
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 10.0, 0.0);
-
-        /*
-         * Shelter exactly at segment midpoint,
-         * therefore shelter penalty = 0.
-         */
-        GeoPoint midpoint =
-                new GeoPoint(
-                        (a.getX() + b.getX()) / 2.0,
-                        (a.getY() + b.getY()) / 2.0
-                );
-
-        shelterRepository.addShelter(
-                new Shelter(
-                        "S1",
-                        "Test Shelter",
-                        midpoint,
-                        true
-                )
+        assertTrue(
+                slow > average,
+                "the same road takes a slow walker longer and leaves them exposed longer"
         );
-
-        Graph graph = new Graph();
-        graph.addJunction(a);
-        graph.addJunction(b);
-
-        // An alert is live in the area, which is what makes the segment risky.
-        areaProfile.recordAlert();
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        2.0
-                );
-
-        double segmentRisk =
-                riskEvaluator.getSegmentRisk(segment);
-
-        assertTrue(segmentRisk > 0.0);
-
-        double expected =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier()
-                        * (
-                                1.0
-                                + params.getFearFactor()
-                                * segmentRisk
-                        );
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        assertEquals(expected, actual, 1e-9);
-    }
-
-    @Test
-    @DisplayName("Higher fear factor should increase cost of risky segment")
-    void higherFearFactorIncreasesRiskySegmentCost() {
-
-        Junction a =
-                new Junction(
-                        "A",
-                        32.0800,
-                        34.7800,
-                        false
-                );
-
-        Junction b =
-                new Junction(
-                        "B",
-                        32.0802,
-                        34.7802,
-                        false
-                );
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 10.0, 0.0);
-
-        GeoPoint midpoint =
-                new GeoPoint(
-                        (a.getX() + b.getX()) / 2.0,
-                        (a.getY() + b.getY()) / 2.0
-                );
-
-        shelterRepository.addShelter(
-                new Shelter(
-                        "S1",
-                        "Test Shelter",
-                        midpoint,
-                        true
-                )
-        );
-
-        Graph graph = new Graph();
-        graph.addJunction(a);
-        graph.addJunction(b);
-
-        areaProfile.recordAlert();
-
-        RouteParams lowFear =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        0.5
-                );
-
-        RouteParams highFear =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        2.0
-                );
-
-        double lowFearCost =
-                calculator.calculateCost(
-                        segment,
-                        lowFear
-                );
-
-        double highFearCost =
-                calculator.calculateCost(
-                        segment,
-                        highFear
-                );
-
-        assertTrue(highFearCost > lowFearCost);
     }
 
     // ---------------------------------------------------------
-    // Shelter penalty - abstract graphs
+    // No shelter at all
     // ---------------------------------------------------------
 
     @Test
-    @DisplayName("Abstract graph without shelter should receive exact shelter penalty")
-    void abstractGraphWithoutShelterGetsPenalty() {
+    @DisplayName("A junction with no reachable shelter should fall back to the caller's limit")
+    void unreachableShelterFallsBackToTheRequestedLimit() {
+        Graph shelterless = new Graph();
+        shelterless.addJunction(new Junction("X", 34.77, 32.07, false));
+        shelterless.addJunction(new Junction("Y", 34.78, 32.07, false));
+        shelterless.addRoadSegment("X", "Y", 2.0);
 
-        Junction a = new Junction("A", false);
-        Junction b = new Junction("B", false);
+        ShelterMap emptyMap = new ShelterMap(shelterless);
+        emptyMap.compute();
 
-        RoadSegment segment =
-                new RoadSegment(a, b, 6.0, 0.0);
+        RouteCostCalculator shelterlessCalculator = new RouteCostCalculator(emptyMap);
 
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        1.5
-                );
+        RoadSegment xy = shelterless.getJunction("X").getOutGoingRoads().get(0);
+        RouteParams params = new RouteParams(WalkingPace.AVERAGE, 1.0, 10.0);
 
-        double actualTime =
-                6.0 * params.getPaceMultiplier();
-
-        double expectedShelterPenalty =
-                params.getFearFactor()
-                        * params.getMaxShelterMinutes();
-
-        double expected =
-                actualTime
-                        + expectedShelterPenalty;
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        assertEquals(expected, actual, 1e-9);
-    }
-
-    @Test
-    @DisplayName("Abstract segment connected to shelter junction should have no shelter penalty")
-    void abstractGraphWithShelterJunctionGetsNoPenalty() {
-
-        Junction a = new Junction("A", false);
-        Junction shelterJunction =
-                new Junction("S", true);
-
-        RoadSegment segment =
-                new RoadSegment(
-                        a,
-                        shelterJunction,
-                        6.0,
-                        0.0
-                );
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        1.5
-                );
-
-        double expected =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier();
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        assertEquals(expected, actual, 1e-9);
-    }
-
-    // ---------------------------------------------------------
-    // Shelter penalty - geographical graphs
-    // ---------------------------------------------------------
-
-    @Test
-    @DisplayName("Shelter at midpoint should produce zero shelter penalty")
-    void shelterAtMidpointProducesNoPenalty() {
-
-        Junction a =
-                new Junction(
-                        "A",
-                        32.0800,
-                        34.7800,
-                        false
-                );
-
-        Junction b =
-                new Junction(
-                        "B",
-                        32.0802,
-                        34.7802,
-                        false
-                );
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 5.0, 0.0);
-
-        GeoPoint midpoint =
-                new GeoPoint(
-                        (a.getX() + b.getX()) / 2.0,
-                        (a.getY() + b.getY()) / 2.0
-                );
-
-        shelterRepository.addShelter(
-                new Shelter(
-                        "S1",
-                        "Midpoint Shelter",
-                        midpoint,
-                        true
-                )
+        // Exposure is infinite, so the requested 10-minute limit stands in for it.
+        assertEquals(
+                2.0 + 1.0 * (10.0 - SAFE_MINUTES),
+                shelterlessCalculator.calculateCost(xy, params),
+                1e-9
         );
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        2.0
-                );
-
-        double expected =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier();
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        assertEquals(expected, actual, 1e-9);
-    }
-
-    @Test
-    @DisplayName("No available shelter should apply maximum shelter penalty")
-    void noShelterAppliesMaximumPenalty() {
-
-        Junction a =
-                new Junction(
-                        "A",
-                        32.0800,
-                        34.7800,
-                        false
-                );
-
-        Junction b =
-                new Junction(
-                        "B",
-                        32.0802,
-                        34.7802,
-                        false
-                );
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 4.0, 0.0);
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        2.0
-                );
-
-        double actualTime =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier();
-
-        double expectedPenalty =
-                params.getFearFactor()
-                        * params.getMaxShelterMinutes();
-
-        double expected =
-                actualTime + expectedPenalty;
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        assertEquals(expected, actual, 1e-9);
-    }
-
-    @Test
-    @DisplayName("Shelter farther than 90 seconds should add penalty only for excess time")
-    void distantShelterAddsPenaltyOnlyBeyondSafeThreshold() {
-
-        Junction a =
-                new Junction(
-                        "A",
-                        32.0000,
-                        34.0000,
-                        false
-                );
-
-        Junction b =
-                new Junction(
-                        "B",
-                        32.0002,
-                        34.0002,
-                        false
-                );
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 4.0, 0.0);
-
-        GeoPoint midpoint =
-                new GeoPoint(
-                        (a.getX() + b.getX()) / 2.0,
-                        (a.getY() + b.getY()) / 2.0
-                );
-
-        GeoPoint farShelterLocation =
-                new GeoPoint(
-                        32.0100,
-                        34.0100
-                );
-
-        shelterRepository.addShelter(
-                new Shelter(
-                        "S-FAR",
-                        "Far Shelter",
-                        farShelterLocation,
-                        true
-                )
-        );
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        2.0
-                );
-
-        double distanceMeters =
-                midpoint.distanceTo(farShelterLocation);
-
-        double metersPerMinute =
-                params.getWalkingSpeedKmh()
-                        * 1000.0 / 60.0;
-
-        double timeToShelter =
-                distanceMeters / metersPerMinute;
-
-        double excessMinutes =
-                Math.max(
-                        0.0,
-                        timeToShelter - 1.5
-                );
-
-        double expectedPenalty =
-                params.getFearFactor()
-                        * excessMinutes;
-
-        double expected =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier()
-                        + expectedPenalty;
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        assertTrue(excessMinutes > 0.0);
-
-        assertEquals(expected, actual, 1e-9);
-    }
-
-    @Test
-    @DisplayName("Shelter reachable within 90 seconds should add no penalty")
-    void nearbyShelterWithinSafeThresholdAddsNoPenalty() {
-
-        Junction a =
-                new Junction(
-                        "A",
-                        32.0800,
-                        34.7800,
-                        false
-                );
-
-        Junction b =
-                new Junction(
-                        "B",
-                        32.0802,
-                        34.7802,
-                        false
-                );
-
-        RoadSegment segment =
-                new RoadSegment(a, b, 4.0, 0.0);
-
-        GeoPoint midpoint =
-                new GeoPoint(
-                        (a.getX() + b.getX()) / 2.0,
-                        (a.getY() + b.getY()) / 2.0
-                );
-
-        // Very close to midpoint
-        GeoPoint nearbyShelter =
-                new GeoPoint(
-                        midpoint.x() + 0.0001,
-                        midpoint.y()
-                );
-
-        shelterRepository.addShelter(
-                new Shelter(
-                        "S-NEAR",
-                        "Nearby Shelter",
-                        nearbyShelter,
-                        true
-                )
-        );
-
-        RouteParams params =
-                new RouteParams(
-                        WalkingPace.AVERAGE,
-                        2.0
-                );
-
-        double actual =
-                calculator.calculateCost(
-                        segment,
-                        params
-                );
-
-        double expected =
-                segment.getTravelTime()
-                        * params.getPaceMultiplier();
-
-        assertEquals(expected, actual, 1e-9);
     }
 }

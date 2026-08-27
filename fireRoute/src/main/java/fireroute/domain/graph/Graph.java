@@ -76,16 +76,12 @@ public class Graph {
      * @param fromId     source junction id
      * @param toId       target junction id
      * @param travelTime travel time in minutes (must be >= 0)
-     * @param riskLevel  risk level (must be >= 0; recommended in [0,1])
      * - getJunction(fromId) != null
      * @throws IllegalArgumentException if ids are invalid or junctions are missing or values invalid
      */
-    public void addRoadSegment(String fromId, String toId, double travelTime, double riskLevel) {
+    public void addRoadSegment(String fromId, String toId, double travelTime) {
         if (travelTime < 0) {
             throw new IllegalArgumentException("travelTime must be >= 0");
-        }
-        if (riskLevel < 0) {
-            throw new IllegalArgumentException("riskLevel must be >= 0");
         }
 
         Junction from = getJunction(fromId);
@@ -98,7 +94,7 @@ public class Graph {
             throw new IllegalArgumentException("target junction not found: " + toId);
         }
 
-        RoadSegment seg = new RoadSegment(to, from, travelTime, riskLevel);
+        RoadSegment seg = new RoadSegment(to, from, travelTime);
         from.addOutgoing(seg);
     }
 

@@ -28,8 +28,6 @@ public class RoutingService {
             params = new RouteParams(); // שימוש בערכי ברירת מחדל אם לא סופקו
         }
 
-        // TODO: כאן יתווסף סנכרון/בדיקה של התרעות פיקוד העורף מול ה-RiskEvaluator לפני הניתוב
-
         return engine.calculateRoute(sourceId, destinationId, params);
     }
 

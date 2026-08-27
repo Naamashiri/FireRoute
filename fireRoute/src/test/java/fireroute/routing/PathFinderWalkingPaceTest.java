@@ -4,12 +4,9 @@ import fireroute.domain.geo.GeoPoint;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.graph.Junction;
 import org.junit.jupiter.api.Test;
-import fireroute.domain.risk.RiskEvaluator;
-import fireroute.domain.risk.RiskProfile;
 import fireroute.domain.shelter.Shelter;
 import fireroute.domain.shelter.ShelterRepository;
 
-import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,59 +35,31 @@ class PathFinderWalkingPaceTest {
                 new Junction("B", 10.0, 10.0, true)
         );
 
-        graph.addRoadSegment(
-                "A",
+        graph.addRoadSegment("A",
                 "B",
-                travelTimeMinutes,
-                0.0
-        );
+                travelTimeMinutes);
 
         return graph;
     }
 
     /**
-     * A risk evaluator for an area with a history of alerts but none active,
-     * so every segment carries the same non-zero risk and cost differences come
-     * purely from pace.
+     * Finder and cost calculator sharing one ShelterMap over the populated graph.
      */
-    private static RiskEvaluator createRiskEvaluator() {
-        RiskProfile areaProfile = new RiskProfile(
-                "area-10",
-                8,
-                Instant.now(),
-                false
-        );
+    private static DijkstraPathFinder pathFinderFor(Graph graph) {
+        ShelterMap shelterMap = new ShelterMap(graph);
+        shelterMap.compute();
 
-        return new RiskEvaluator(areaProfile);
-    }
-
-    /**
-     * Shelter placed exactly at the midpoint between A and B, so the
-     * shelter-distance penalty in RouteCostCalculator is always zero
-     * and cost scales purely with pace.
-     */
-    private static RouteCostCalculator createRouteCostCalculator(
-            RiskEvaluator riskEvaluator
-    ) {
-        ShelterRepository shelterRepository = new ShelterRepository();
-        shelterRepository.addShelter(
-                new Shelter("mid", "mid", new GeoPoint(5.0, 5.0), true)
+        return new DijkstraPathFinder(
+                graph,
+                shelterMap,
+                new RouteCostCalculator(shelterMap)
         );
-        return new RouteCostCalculator(riskEvaluator, shelterRepository);
     }
 
     @Test
     void slowerPaceIncreasesTravelTimeAndCostWithoutChangingPathOrRisk() {
         Graph graph = createTwoJunctionGraph(2.0);
-        RiskEvaluator riskEvaluator =
-                createRiskEvaluator();
-
-        DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        createRouteCostCalculator(riskEvaluator)
-                );
+                DijkstraPathFinder pathFinder = pathFinderFor(graph);
 
         Junction source = graph.getJunction("A");
         Junction destination = graph.getJunction("B");
@@ -125,12 +94,6 @@ class PathFinderWalkingPaceTest {
                 slowResult.getPath()
         );
 
-        assertEquals(
-                averageResult.getMaxRisk(),
-                slowResult.getMaxRisk(),
-                1e-9
-        );
-
         assertTrue(
                 slowResult.getTotalTime()
                         > averageResult.getTotalTime()
@@ -160,15 +123,7 @@ class PathFinderWalkingPaceTest {
     @Test
     void slowPaceCanBreachShelterLimitThatAveragePaceRespects() {
         Graph graph = createTwoJunctionGraph(6.0);
-        RiskEvaluator riskEvaluator =
-                createRiskEvaluator();
-
-        DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        createRouteCostCalculator(riskEvaluator)
-                );
+                DijkstraPathFinder pathFinder = pathFinderFor(graph);
 
         Junction source = graph.getJunction("A");
         Junction destination = graph.getJunction("B");

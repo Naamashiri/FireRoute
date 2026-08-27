@@ -2,14 +2,14 @@ package fireroute.config;
 
 import fireroute.application.FireRouteEngine;
 import fireroute.domain.graph.Graph;
-import fireroute.domain.risk.RiskEvaluator;
-import fireroute.domain.risk.RiskProfile;
+import fireroute.domain.alert.AlertState;
 import fireroute.domain.shelter.ShelterRepository;
 import fireroute.infrastructure.loader.JsonDataLoader;
 import fireroute.infrastructure.loader.ShelterLoader;
 import fireroute.routing.DijkstraPathFinder;
 import fireroute.routing.PathFinder;
 import fireroute.routing.RouteCostCalculator;
+import fireroute.routing.ShelterMap;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -65,48 +65,49 @@ public class AppConfig {
      * Alert state for the single area this service covers.
      *
      * Mutable and shared on purpose: it is the one thing in the domain that
-     * changes while the application runs. Recording an alert here is what makes
-     * the next route calculation avoid the area, without rebuilding anything.
-     *
-     * It starts quiet — no alerts recorded, none active — so a freshly started
-     * service routes on walking time alone until something tells it otherwise.
+     * changes while the application runs. It starts quiet, so a freshly started
+     * service routes on walking time alone until an alert source says otherwise.
      */
     @Bean
-    public RiskProfile areaRiskProfile(
+    public AlertState alertState(
             @Value("${fireroute.area.id:ever-hayarkon}") String areaId
     ) {
-        return new RiskProfile(areaId, 0, null, false);
+        return new AlertState(areaId);
+    }
+
+    /**
+     * Walking time from every junction to its nearest shelter, by multi-source
+     * Dijkstra over the reversed graph.
+     *
+     * Built here rather than inside the path finder because two collaborators
+     * need it — the finder, to keep routes near cover, and the cost calculator,
+     * to price exposure. One instance means one definition of "near a shelter",
+     * and the whole-graph sweep is paid once at startup instead of per request.
+     */
+    @Bean
+    public ShelterMap shelterMap(Graph graph) {
+        ShelterMap shelterMap = new ShelterMap(graph);
+        shelterMap.compute();
+        return shelterMap;
     }
 
     @Bean
-    public RiskEvaluator riskEvaluator(RiskProfile areaRiskProfile) {
-        return new RiskEvaluator(areaRiskProfile);
-    }
-
-    @Bean
-    public RouteCostCalculator routeCostCalculator(
-            RiskEvaluator riskEvaluator,
-            ShelterRepository shelterRepository
-    ) {
-        return new RouteCostCalculator(riskEvaluator, shelterRepository);
+    public RouteCostCalculator routeCostCalculator(ShelterMap shelterMap) {
+        return new RouteCostCalculator(shelterMap);
     }
 
     /**
      * Declared as PathFinder, not DijkstraPathFinder, so everything downstream
      * depends on the abstraction and the algorithm stays replaceable from this
      * one line.
-     *
-     * The constructor runs a multi-source Dijkstra over the whole graph to build
-     * the shelter distance map. Expensive, but paid once here at startup instead
-     * of on every request.
      */
     @Bean
     public PathFinder pathFinder(
             Graph graph,
-            RiskEvaluator riskEvaluator,
+            ShelterMap shelterMap,
             RouteCostCalculator routeCostCalculator
     ) {
-        return new DijkstraPathFinder(graph, riskEvaluator, routeCostCalculator);
+        return new DijkstraPathFinder(graph, shelterMap, routeCostCalculator);
     }
 
     @Bean

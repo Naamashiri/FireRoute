@@ -6,9 +6,6 @@ import fireroute.domain.graph.RoadSegment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import fireroute.domain.risk.RiskEvaluator;
-import fireroute.domain.risk.RiskProfile;
-import fireroute.domain.shelter.ShelterRepository;
 
 import java.util.List;
 
@@ -17,23 +14,26 @@ import static org.junit.jupiter.api.Assertions.*;
 class DijkstraPathFinderTest {
 
     private Graph graph;
-    private RiskEvaluator riskEvaluator;
-    private ShelterRepository shelterRepository;
-    private RouteCostCalculator routeCostCalculator;
 
     @BeforeEach
     void setUp() {
         graph = new Graph();
-        // A quiet area: no alerts recorded, none active, so risk is zero and
-        // cost is pure walking time. Tests that need risk record an alert.
-        riskEvaluator = new RiskEvaluator(new RiskProfile("test-area", 0, null, false));
-        shelterRepository = new ShelterRepository();
+    }
 
-        routeCostCalculator =
-                new RouteCostCalculator(
-                        riskEvaluator,
-                        shelterRepository
-                );
+    /**
+     * ShelterMap has to be computed after the graph is populated, and the finder
+     * and the cost calculator must share the one instance, so every test builds
+     * its finder through here once its junctions and roads are in place.
+     */
+    private DijkstraPathFinder pathFinderFor(Graph graph) {
+        ShelterMap shelterMap = new ShelterMap(graph);
+        shelterMap.compute();
+
+        return new DijkstraPathFinder(
+                graph,
+                shelterMap,
+                new RouteCostCalculator(shelterMap)
+        );
     }
 
     @Test
@@ -44,8 +44,8 @@ class DijkstraPathFinderTest {
                 IllegalArgumentException.class,
                 () -> new DijkstraPathFinder(
                         null,
-                        riskEvaluator,
-                        routeCostCalculator
+                        new ShelterMap(graph),
+                        new RouteCostCalculator(new ShelterMap(graph))
                 )
         );
 
@@ -54,7 +54,7 @@ class DijkstraPathFinderTest {
                 () -> new DijkstraPathFinder(
                         graph,
                         null,
-                        routeCostCalculator
+                        new RouteCostCalculator(new ShelterMap(graph))
                 )
         );
 
@@ -62,7 +62,7 @@ class DijkstraPathFinderTest {
                 IllegalArgumentException.class,
                 () -> new DijkstraPathFinder(
                         graph,
-                        riskEvaluator,
+                        new ShelterMap(graph),
                         null
                 )
         );
@@ -79,11 +79,7 @@ class DijkstraPathFinderTest {
         graph.addJunction(b);
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -127,11 +123,7 @@ class DijkstraPathFinderTest {
         graph.addJunction(a);
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -162,12 +154,6 @@ class DijkstraPathFinderTest {
                 result.getTotalCost(),
                 0.001
         );
-
-        assertEquals(
-                0.0,
-                result.getMaxRisk(),
-                0.001
-        );
     }
 
     @Test
@@ -187,11 +173,7 @@ class DijkstraPathFinderTest {
         );
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -255,11 +237,7 @@ class DijkstraPathFinderTest {
         );
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -306,11 +284,7 @@ class DijkstraPathFinderTest {
         graph.addJunction(b);
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -369,11 +343,7 @@ class DijkstraPathFinderTest {
         );
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -414,11 +384,7 @@ class DijkstraPathFinderTest {
         );
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -468,11 +434,7 @@ class DijkstraPathFinderTest {
         graph.addJunction(start);
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -536,11 +498,7 @@ class DijkstraPathFinderTest {
         );
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -586,11 +544,7 @@ class DijkstraPathFinderTest {
         graph.addJunction(shelter);
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -648,11 +602,7 @@ class DijkstraPathFinderTest {
         );
 
         DijkstraPathFinder pathFinder =
-                new DijkstraPathFinder(
-                        graph,
-                        riskEvaluator,
-                        routeCostCalculator
-                );
+                pathFinderFor(graph);
 
         RouteParams params =
                 new RouteParams(
@@ -687,8 +637,7 @@ class DijkstraPathFinderTest {
                 new RoadSegment(
                         to,
                         from,
-                        travelTime,
-                        0.0
+                        travelTime
                 );
 
         from.addOutgoing(segment);
