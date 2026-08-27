@@ -1,5 +1,6 @@
 package fireroute.api.controller;
 
+import fireroute.api.dto.EmergencyRouteRequest;
 import fireroute.api.dto.RouteRequest;
 import fireroute.api.dto.RouteResponse;
 import fireroute.api.mapper.RouteMapper;
@@ -43,8 +44,8 @@ public class RoutingController {
      * honest verb for it — and it keeps every route reachable from a plain URL,
      * cacheable, and shareable as a link.
      *
-     * RouteRequest carries no annotation: Spring binds query parameters straight
-     * into the record's constructor for any non-simple parameter type. Should the
+     * The request record carries no annotation: Spring binds query parameters
+     * straight into the constructor for any non-simple parameter type. Should a
      * request ever grow a nested field — a list of waypoints, an area to avoid —
      * a query string stops being expressive enough and this becomes a POST with
      * a JSON body.
@@ -56,6 +57,26 @@ public class RoutingController {
         PathResult pathResult = routingService.calculateRoute(
                 request.sourceId(),
                 request.destinationId(),
+                params
+        );
+
+        return routeMapper.toRouteResponse(pathResult);
+    }
+
+    /**
+     * Routes to the nearest shelter rather than to a chosen destination.
+     *
+     * A separate endpoint rather than a destination-less variant of the one
+     * above: the two answer different questions, and under an alert this is the
+     * only one a client should be calling. The last point of the returned path
+     * is the shelter, by construction.
+     */
+    @GetMapping("/routes/emergency")
+    public RouteResponse emergencyRoute(EmergencyRouteRequest request) {
+        RouteParams params = routeMapper.toRouteParams(request);
+
+        PathResult pathResult = routingService.calculateEmergencyRoute(
+                request.sourceId(),
                 params
         );
 

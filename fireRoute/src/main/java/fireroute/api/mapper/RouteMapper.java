@@ -1,7 +1,7 @@
 package fireroute.api.mapper;
 
 import fireroute.api.dto.RoutePoint;
-import fireroute.api.dto.RouteRequest;
+import fireroute.api.dto.RouteOptions;
 import fireroute.api.dto.RouteResponse;
 import fireroute.api.dto.WalkingPaceDto;
 import fireroute.routing.PathResult;
@@ -32,11 +32,13 @@ public class RouteMapper {
      * omitted from the routing defaults rather than from constants duplicated in
      * the API layer.
      *
-     * The null checks are the point of this method: RouteRequest boxes its
-     * numbers so that "field omitted" stays distinguishable from "sent as zero",
-     * and this is the single place where that distinction gets resolved.
+     * The null checks are the point of this method: the request records box
+     * their numbers so that "field omitted" stays distinguishable from "sent as
+     * zero", and this is the single place where that distinction gets resolved.
+     * Taking RouteOptions rather than a concrete record means both endpoints
+     * resolve their defaults through the same code.
      */
-    public RouteParams toRouteParams(RouteRequest request) {
+    public RouteParams toRouteParams(RouteOptions request) {
         if (request == null) {
             throw new IllegalArgumentException("request must not be null");
         }
