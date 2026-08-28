@@ -1,8 +1,9 @@
 package fireroute.domain.shelter;
 
-import fireroute.domain.geo.GeoPoint;
 import java.util.ArrayList;
 import java.util.List;
+
+import fireroute.domain.graph.GeoPoint;
 
 public class ShelterRepository {
     private final List<Shelter> shelters = new ArrayList<>();

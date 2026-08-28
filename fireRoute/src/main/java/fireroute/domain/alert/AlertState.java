@@ -30,12 +30,13 @@ public class AlertState {
         this.areaId = areaId;
     }
 
-    public void raiseAlert() {
-        this.alertActive = true;
-    }
-
-    public void clearAlert() {
-        this.alertActive = false;
+    /**
+     * Takes a value rather than only raising, because an alert that can start
+     * and never end is worse than no alert handling at all: the service would
+     * keep telling everyone to take cover long after it was over.
+     */
+    public void setAlertActive(boolean alertActive) {
+        this.alertActive = alertActive;
     }
 
     public boolean isAlertActive() {

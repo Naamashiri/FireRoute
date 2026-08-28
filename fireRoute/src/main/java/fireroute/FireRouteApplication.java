@@ -2,6 +2,7 @@ package fireroute;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Entry point of the FireRoute service.
@@ -12,8 +13,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * deeper would leave api, application and config invisible to the container.
  *
  * Object wiring lives in {@link fireroute.config.AppConfig}, not here.
+ *
+ * @EnableScheduling is what makes @Scheduled methods run at all; without it
+ * Spring ignores the annotation silently and the alert poller never fires.
  */
 @SpringBootApplication
+@EnableScheduling
 public class FireRouteApplication {
 
     public static void main(String[] args) {

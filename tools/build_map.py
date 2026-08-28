@@ -20,8 +20,11 @@ import osmnx as ox
 
 # --- what to build -----------------------------------------------------------
 
-CENTER = (32.0780, 34.7740)   # (latitude, longitude) — central Tel Aviv
-RADIUS_METERS = 1500          # start small; a bigger radius grows the file fast
+# "תל אביב - מרכז העיר" — the Home Front Command alert area this service covers.
+# Centred between Rothschild, Nahalat Binyamin and Habima, which is the heart of
+# that area, so the graph and the municipal shelter data cover the same ground.
+CENTER = (32.0680, 34.7740)   # (latitude, longitude)
+RADIUS_METERS = 1800
 
 # Average walking speed, matching WalkingPace.AVERAGE on the Java side.
 # travelTime is stored at this pace; RouteParams.getPaceMultiplier() adjusts it

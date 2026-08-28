@@ -1,4 +1,4 @@
-package fireroute.domain.geo;
+package fireroute.domain.graph;
 
 /**
  * Represents a geographic point (coordinates).

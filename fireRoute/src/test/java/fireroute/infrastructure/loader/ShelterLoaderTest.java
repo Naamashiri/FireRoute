@@ -1,7 +1,8 @@
 package fireroute.infrastructure.loader;
 
 import org.junit.jupiter.api.Test;
-import fireroute.domain.geo.GeoPoint;
+
+import fireroute.domain.graph.GeoPoint;
 import fireroute.domain.shelter.Shelter;
 import fireroute.domain.shelter.ShelterRepository;
 

@@ -1,6 +1,6 @@
 package fireroute.routing;
 
-import fireroute.domain.geo.GeoPoint;
+import fireroute.domain.graph.GeoPoint;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.graph.Junction;
 import org.junit.jupiter.api.Test;

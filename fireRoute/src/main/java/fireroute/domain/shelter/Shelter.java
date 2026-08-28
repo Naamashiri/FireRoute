@@ -1,6 +1,6 @@
 package fireroute.domain.shelter;
 
-import fireroute.domain.geo.GeoPoint;
+import fireroute.domain.graph.GeoPoint;
 
 public class Shelter {
     private final String id;

@@ -2,7 +2,8 @@ package fireroute.infrastructure.loader;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fireroute.domain.geo.GeoPoint;
+
+import fireroute.domain.graph.GeoPoint;
 import fireroute.domain.shelter.Shelter;
 import fireroute.domain.shelter.ShelterRepository;
 

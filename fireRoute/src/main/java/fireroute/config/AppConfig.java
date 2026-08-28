@@ -1,6 +1,7 @@
 package fireroute.config;
 
 import fireroute.application.FireRouteEngine;
+import fireroute.application.JunctionLocator;
 import fireroute.domain.graph.Graph;
 import fireroute.domain.alert.AlertState;
 import fireroute.domain.shelter.ShelterRepository;
@@ -108,6 +109,11 @@ public class AppConfig {
             RouteCostCalculator routeCostCalculator
     ) {
         return new DijkstraPathFinder(graph, shelterMap, routeCostCalculator);
+    }
+
+    @Bean
+    public JunctionLocator junctionLocator(Graph graph) {
+        return new JunctionLocator(graph);
     }
 
     @Bean
