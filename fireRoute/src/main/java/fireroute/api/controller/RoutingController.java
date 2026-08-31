@@ -5,12 +5,13 @@ import fireroute.api.dto.RouteRequest;
 import fireroute.api.dto.RouteResponse;
 import fireroute.api.mapper.RouteMapper;
 import fireroute.application.RoutingService;
-import fireroute.routing.PathResult;
-import fireroute.routing.RouteParams;
+import fireroute.domain.routing.PathResult;
+import fireroute.domain.routing.RouteParams;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 
 /**
@@ -52,7 +53,7 @@ public class RoutingController {
      * a JSON body.
      */
     @GetMapping("/routes")
-    public RouteResponse route(RouteRequest request) {
+    public RouteResponse route(@Valid RouteRequest request) {
         RouteParams params = routeMapper.toRouteParams(request);
 
         PathResult pathResult = routingService.calculateRoute(
@@ -75,7 +76,7 @@ public class RoutingController {
      * is the shelter, by construction.
      */
     @GetMapping("/routes/emergency")
-    public RouteResponse emergencyRoute(EmergencyRouteRequest request) {
+    public RouteResponse emergencyRoute(@Valid EmergencyRouteRequest request) {
         RouteParams params = routeMapper.toRouteParams(request);
 
         PathResult pathResult = routingService.calculateEmergencyRoute(
@@ -83,6 +84,6 @@ public class RoutingController {
                 params
         );
 
-        return routeMapper.toRouteResponse(pathResult);
+        return routeMapper.toEmergencyRouteResponse(pathResult);
     }
 }

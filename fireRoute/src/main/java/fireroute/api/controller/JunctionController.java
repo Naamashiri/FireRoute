@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 
 /**
  * Junctions as a resource of their own: they are not routes, and they answer a
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api")
+@Validated
 public class JunctionController {
 
     private final JunctionLocator junctionLocator;
@@ -34,8 +38,10 @@ public class JunctionController {
      */
     @GetMapping("/junctions/nearest")
     public JunctionResponse nearest(
-            @RequestParam double lat,
-            @RequestParam double lon
+            @RequestParam @DecimalMin(value = "-90", message = "lat must be at least -90")
+                    @DecimalMax(value = "90", message = "lat must be at most 90") double lat,
+            @RequestParam @DecimalMin(value = "-180", message = "lon must be at least -180")
+                    @DecimalMax(value = "180", message = "lon must be at most 180") double lon
     ) {
         Junction junction = junctionLocator.nearestTo(lat, lon);
 

@@ -6,9 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fireroute.domain.graph.GeoPoint;
 import fireroute.domain.shelter.Shelter;
 import fireroute.domain.shelter.ShelterRepository;
+import fireroute.infrastructure.shelter.InMemoryShelterRepository;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ShelterLoader {
 
@@ -40,7 +43,7 @@ public class ShelterLoader {
      * קורא את ה-JSON ומחלץ את המקלטים
      */
     public ShelterRepository loadFromInputStream(InputStream inputStream) throws IOException {
-        ShelterRepository repository = new ShelterRepository();
+        List<Shelter> shelters = new ArrayList<>();
         JsonNode root = objectMapper.readTree(inputStream);
 
         JsonNode features = root.has("features") ? root.get("features") : root;
@@ -49,12 +52,12 @@ public class ShelterLoader {
             for (JsonNode item : features) {
                 Shelter shelter = parseShelter(item);
                 if (shelter != null) {
-                    repository.addShelter(shelter);
+                    shelters.add(shelter);
                 }
             }
         }
 
-        return repository;
+        return new InMemoryShelterRepository(shelters);
     }
 
     private Shelter parseShelter(JsonNode node) {
@@ -63,7 +66,11 @@ public class ShelterLoader {
 
             // 1. חילוץ מזהה מקלט (מתאים ל-ms_miklat או UniqueId של עיריית תל אביב)
             String id = "unknown";
-            if (properties.has("UniqueId")) {
+            // The GeoJSON feature id is the export's actual row key. UniqueId
+            // sounds safer but the municipal production file contains duplicates.
+            if (node.has("id") && !node.get("id").isNull()) {
+                id = node.get("id").asText();
+            } else if (properties.has("UniqueId")) {
                 id = properties.get("UniqueId").asText();
             } else if (properties.has("ms_miklat")) {
                 id = String.valueOf(properties.get("ms_miklat").asText());

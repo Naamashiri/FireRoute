@@ -15,12 +15,21 @@ import fireroute.domain.graph.Junction;
 public class JunctionLocator {
 
     private final Graph graph;
+    private final double maxSnapDistanceMeters;
 
     public JunctionLocator(Graph graph) {
+        this(graph, 250.0);
+    }
+
+    public JunctionLocator(Graph graph, double maxSnapDistanceMeters) {
         if (graph == null) {
             throw new IllegalArgumentException("graph must not be null");
         }
+        if (!Double.isFinite(maxSnapDistanceMeters) || maxSnapDistanceMeters <= 0) {
+            throw new IllegalArgumentException("maxSnapDistanceMeters must be finite and positive");
+        }
         this.graph = graph;
+        this.maxSnapDistanceMeters = maxSnapDistanceMeters;
     }
 
     /**
@@ -37,6 +46,9 @@ public class JunctionLocator {
      * @throws IllegalArgumentException if the graph holds no located junction
      */
     public Junction nearestTo(double latitude, double longitude) {
+        if (!Double.isFinite(latitude) || !Double.isFinite(longitude)) {
+            throw new IllegalArgumentException("latitude and longitude must be finite");
+        }
         double metresPerDegreeLat = 111_320.0;
         double metresPerDegreeLon = metresPerDegreeLat * Math.cos(Math.toRadians(latitude));
 
@@ -60,6 +72,11 @@ public class JunctionLocator {
 
         if (nearest == null) {
             throw new IllegalArgumentException("the graph contains no junction with coordinates");
+        }
+
+        double nearestDistanceMeters = Math.sqrt(nearestDistanceSquared);
+        if (nearestDistanceMeters > maxSnapDistanceMeters) {
+            throw new LocationOutsideCoverageException(nearestDistanceMeters, maxSnapDistanceMeters);
         }
 
         return nearest;

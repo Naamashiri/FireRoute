@@ -1,6 +1,11 @@
 package fireroute.config;
 
-import fireroute.application.AlertSource;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import fireroute.application.alert.AlertSource;
+import fireroute.application.alert.AlertMonitoringService;
+import fireroute.domain.alert.AlertState;
+import fireroute.infrastructure.alert.OrefAlertClient;
+import fireroute.infrastructure.alert.OrefAlertParser;
 import fireroute.infrastructure.alert.OrefAlertSource;
 import fireroute.infrastructure.alert.SimulatedAlertSource;
 
@@ -8,6 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Arrays;
+import java.time.Clock;
 
 /**
  * Chooses where alerts come from.
@@ -28,6 +36,20 @@ import org.springframework.context.annotation.Configuration;
 public class AlertConfig {
 
     @Bean
+    public Clock alertClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    public AlertMonitoringService alertMonitoringService(
+            AlertSource source,
+            AlertState state,
+            Clock alertClock
+    ) {
+        return new AlertMonitoringService(source, state, alertClock);
+    }
+
+    @Bean
     @ConditionalOnProperty(
             name = "fireroute.alerts.source",
             havingValue = "simulated",
@@ -39,10 +61,31 @@ public class AlertConfig {
 
     @Bean
     @ConditionalOnProperty(name = "fireroute.alerts.source", havingValue = "oref")
-    public AlertSource orefAlertSource(
+    public OrefAlertClient orefAlertClient(
             @Value("${fireroute.alerts.oref-url:https://www.oref.org.il/WarningMessages/alert/alerts.json}")
             String endpoint
     ) {
-        return new OrefAlertSource(endpoint);
+        return new OrefAlertClient(endpoint);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "fireroute.alerts.source", havingValue = "oref")
+    public OrefAlertParser orefAlertParser(
+            ObjectMapper objectMapper,
+            @Value("${fireroute.alerts.supported-areas}") String supportedAreas
+    ) {
+        return new OrefAlertParser(
+                objectMapper,
+                Arrays.asList(supportedAreas.split("\\|"))
+        );
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "fireroute.alerts.source", havingValue = "oref")
+    public AlertSource orefAlertSource(
+            OrefAlertClient client,
+            OrefAlertParser parser
+    ) {
+        return new OrefAlertSource(client, parser);
     }
 }

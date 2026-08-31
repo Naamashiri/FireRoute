@@ -1,5 +1,8 @@
 package fireroute.api.dto;
 
+import fireroute.domain.alert.AlertStatus;
+import java.time.Instant;
+
 /**
  * The current alert state, as the client polls for it.
  *
@@ -10,6 +13,13 @@ package fireroute.api.dto;
  */
 public record AlertStatusResponse(
         String areaId,
-        boolean alertActive
+        AlertStatus status,
+        AlertStatus lastKnownStatus,
+        boolean alertActive,
+        boolean simulated,
+        boolean stale,
+        Instant lastAttemptAt,
+        Instant lastSuccessfulReadAt,
+        Instant lastChangedAt
 ) {
 }

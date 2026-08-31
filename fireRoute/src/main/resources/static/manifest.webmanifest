@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "FireRoute — ללכת על בטוח",
+  "short_name": "FireRoute",
+  "description": "ניווט רגלי מותאם למרחבים מוגנים, עם נתוני חירום זמינים גם בחיבור מוגבל",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#154f3d",
+  "lang": "he",
+  "dir": "rtl",
+  "orientation": "portrait-primary",
+  "categories": ["navigation", "utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

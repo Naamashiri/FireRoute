@@ -9,6 +9,9 @@ public class Shelter {
     private final boolean accessible;
 
     public Shelter(String id, String address, GeoPoint location, boolean accessible) {
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("id must not be blank");
+        if (address == null || address.isBlank()) throw new IllegalArgumentException("address must not be blank");
+        if (location == null) throw new IllegalArgumentException("location must not be null");
         this.id = id;
         this.address = address;
         this.location = location;

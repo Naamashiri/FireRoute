@@ -24,3 +24,25 @@ jobs:
       - name: Build and run tests
         working-directory: fireRoute
         run: mvn --batch-mode clean verify
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run performance smoke test
+        shell: bash
+        run: |
+          java -jar fireRoute/target/FireRoute-1.0-SNAPSHOT.jar --fireroute.alerts.source=simulated > fireRoute-smoke.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          for attempt in {1..60}; do
+            if curl --fail --silent http://localhost:8080/api/alerts/status > /dev/null; then
+              break
+            fi
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              cat fireRoute-smoke.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:8080/api/alerts/status > /dev/null
+          k6 run -e K6_SMOKE=true performance/load-test.js

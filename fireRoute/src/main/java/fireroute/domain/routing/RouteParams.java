@@ -1,4 +1,4 @@
-package fireroute.routing;
+package fireroute.domain.routing;
 
 /**
  * The parameters a user brings to a route request: how fast they walk, how much

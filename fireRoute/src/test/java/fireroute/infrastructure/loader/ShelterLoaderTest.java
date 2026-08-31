@@ -25,14 +25,14 @@ public class ShelterLoaderTest {
     void loadsEveryShelterInTheFile() throws Exception {
         ShelterRepository repository = new ShelterLoader().loadFromResources(FIXTURE);
 
-        assertEquals(3, repository.getAllShelters().size());
+        assertEquals(3, repository.findAll().size());
     }
 
     @Test
     void parsesIdAddressAndLocation() throws Exception {
         ShelterRepository repository = new ShelterLoader().loadFromResources(FIXTURE);
 
-        Shelter first = repository.getAllShelters().get(0);
+        Shelter first = repository.findAll().get(0);
 
         assertEquals("S1", first.getId());
         assertEquals("Dizengoff 100, Tel Aviv", first.getAddress());
@@ -46,7 +46,7 @@ public class ShelterLoaderTest {
         ShelterRepository repository = new ShelterLoader().loadFromResources(FIXTURE);
 
         // Sitting almost exactly on S1.
-        Shelter nearest = repository.findNearestShelter(new GeoPoint(34.7741, 32.0781));
+        Shelter nearest = repository.findNearestTo(new GeoPoint(34.7741, 32.0781)).orElseThrow();
 
         assertNotNull(nearest);
         assertEquals("S1", nearest.getId());
@@ -57,7 +57,7 @@ public class ShelterLoaderTest {
         ShelterRepository repository = new ShelterLoader().loadFromResources(FIXTURE);
 
         // S3 is 817m from S1 and S2 is 1679m, so a 1km radius takes in S1 and S3.
-        assertEquals(2, repository.findSheltersInRadius(new GeoPoint(34.7740, 32.0780), 1000).size());
+        assertEquals(2, repository.findWithinRadius(new GeoPoint(34.7740, 32.0780), 1000).size());
     }
 
     @Test

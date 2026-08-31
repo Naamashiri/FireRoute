@@ -1,7 +1,7 @@
 package fireroute.infrastructure.alert;
 
-import fireroute.application.AlertReading;
-import fireroute.application.AlertSource;
+import fireroute.application.alert.AlertSource;
+import fireroute.domain.alert.AlertStatus;
 
 /**
  * An alert source whose answer is set by hand instead of fetched.
@@ -17,14 +17,14 @@ import fireroute.application.AlertSource;
  */
 public class SimulatedAlertSource implements AlertSource {
 
-    private volatile AlertReading reading = AlertReading.QUIET;
+    private volatile AlertStatus reading = AlertStatus.QUIET;
 
     @Override
-    public AlertReading read() {
+    public AlertStatus read() {
         return reading;
     }
 
-    public void set(AlertReading reading) {
+    public void set(AlertStatus reading) {
         if (reading == null) {
             throw new IllegalArgumentException("reading must not be null");
         }

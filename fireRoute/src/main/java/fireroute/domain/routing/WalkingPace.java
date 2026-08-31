@@ -1,4 +1,4 @@
-package fireroute.routing;
+package fireroute.domain.routing;
 public enum WalkingPace {
     SLOW(3.5),
     AVERAGE(5.0),

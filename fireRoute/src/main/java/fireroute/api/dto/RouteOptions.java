@@ -22,16 +22,4 @@ public interface RouteOptions {
 
     Double maxShelterMinutes();
 
-    /**
-     * Shared validation for the record constructors. Records cannot inherit a
-     * constructor, so the rule lives here and each compact constructor calls it.
-     */
-    static void validate(Double fearFactor, Double maxShelterMinutes) {
-        if (fearFactor != null && fearFactor < 0) {
-            throw new IllegalArgumentException("fearFactor must not be negative");
-        }
-        if (maxShelterMinutes != null && maxShelterMinutes < 0) {
-            throw new IllegalArgumentException("maxShelterMinutes must not be negative");
-        }
-    }
 }

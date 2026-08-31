@@ -5,9 +5,12 @@ import fireroute.api.dto.RouteOptions;
 import fireroute.api.dto.RouteFailureReason;
 import fireroute.api.dto.RouteResponse;
 import fireroute.api.dto.WalkingPaceDto;
-import fireroute.routing.PathResult;
-import fireroute.routing.RouteParams;
-import fireroute.routing.WalkingPace;
+import fireroute.api.dto.RouteType;
+import fireroute.domain.routing.PathResult;
+import fireroute.domain.routing.RouteParams;
+import fireroute.domain.routing.WalkingPace;
+import fireroute.domain.graph.GeoPoint;
+import fireroute.domain.shelter.ShelterRepository;
 
 import org.springframework.stereotype.Component;
 
@@ -27,6 +30,13 @@ import java.util.List;
  */
 @Component
 public class RouteMapper {
+    private final ShelterRepository shelterRepository;
+    private final ShelterMapper shelterMapper;
+
+    public RouteMapper(ShelterRepository shelterRepository, ShelterMapper shelterMapper) {
+        this.shelterRepository = shelterRepository;
+        this.shelterMapper = shelterMapper;
+    }
 
     /**
      * Builds routing parameters from a request, filling in whatever the caller
@@ -69,10 +79,13 @@ public class RouteMapper {
         if (!pathResult.hasPath()) {
             return new RouteResponse(
                     false,
+                    RouteType.NORMAL,
                     RouteFailureReason.NO_ROUTE_EXISTS,
                     0.0,
                     List.of(),
                     0.0,
+                    false,
+                    null,
                     false
             );
         }
@@ -90,12 +103,33 @@ public class RouteMapper {
 
         return new RouteResponse(
                 true,
+                RouteType.NORMAL,
                 RouteFailureReason.NONE,
                 pathResult.getTotalTime(),
                 points,
                 pathResult.getMaxMinutesToShelter(),
-                pathResult.isShelterConstraintSatisfied()
+                pathResult.isShelterConstraintSatisfied(),
+                null,
+                false
         );
+    }
+
+    public RouteResponse toEmergencyRouteResponse(PathResult pathResult) {
+        RouteResponse route = toRouteResponse(pathResult);
+        if (!route.found()) {
+            return new RouteResponse(false, RouteType.EMERGENCY,
+                    RouteFailureReason.NO_REACHABLE_SHELTER, 0.0, List.of(),
+                    0.0, false, null, false);
+        }
+
+        RoutePoint destination = route.pathPoints().get(route.pathPoints().size() - 1);
+        var shelter = shelterRepository.findNearestTo(
+                new GeoPoint(destination.longitude(), destination.latitude())
+        ).map(shelterMapper::toResponse).orElse(null);
+
+        return new RouteResponse(route.found(), RouteType.EMERGENCY, route.failureReason(), route.totalTravelTime(),
+                route.pathPoints(), route.maxMinutesToShelter(),
+                route.shelterConstraintSatisfied(), shelter, route.pathPoints().size() == 1);
     }
 
     /**

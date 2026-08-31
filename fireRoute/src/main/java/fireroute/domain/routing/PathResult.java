@@ -1,4 +1,4 @@
-package fireroute.routing;
+package fireroute.domain.routing;
 
 import fireroute.domain.graph.Junction;
 

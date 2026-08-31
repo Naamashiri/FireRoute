@@ -9,3 +9,11 @@
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Build and generated output
+fireRoute/target/
+cache/
+_to_delete/
+output/
+tmp/
+*.log

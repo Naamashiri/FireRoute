@@ -1,8 +1,9 @@
 package fireroute.api.controller;
 
-import fireroute.application.AlertReading;
 import fireroute.api.dto.AlertStatusResponse;
+import fireroute.api.mapper.AlertStatusMapper;
 import fireroute.domain.alert.AlertState;
+import fireroute.domain.alert.AlertStatus;
 import fireroute.infrastructure.alert.SimulatedAlertSource;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -37,25 +38,25 @@ public class AlertSimulationController {
 
     private final SimulatedAlertSource simulatedAlertSource;
     private final AlertState alertState;
+    private final AlertStatusMapper mapper;
 
     public AlertSimulationController(
             SimulatedAlertSource simulatedAlertSource,
-            AlertState alertState
+            AlertState alertState,
+            AlertStatusMapper mapper
     ) {
-        if (simulatedAlertSource == null || alertState == null) {
+        if (simulatedAlertSource == null || alertState == null || mapper == null) {
             throw new IllegalArgumentException("dependencies must not be null");
         }
         this.simulatedAlertSource = simulatedAlertSource;
         this.alertState = alertState;
+        this.mapper = mapper;
     }
 
     @PostMapping("/alerts/simulate")
     public AlertStatusResponse simulate(@RequestParam boolean active) {
-        simulatedAlertSource.set(active ? AlertReading.ACTIVE : AlertReading.QUIET);
+        simulatedAlertSource.set(active ? AlertStatus.ACTIVE : AlertStatus.QUIET);
 
-        return new AlertStatusResponse(
-                alertState.getAreaId(),
-                alertState.isAlertActive()
-        );
+        return mapper.toResponse(alertState);
     }
 }

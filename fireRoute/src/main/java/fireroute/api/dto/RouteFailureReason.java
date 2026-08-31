@@ -13,5 +13,8 @@ public enum RouteFailureReason {
     NONE,
 
     /** No sequence of roads connects the two junctions in the requested direction. */
-    NO_ROUTE_EXISTS
+    NO_ROUTE_EXISTS,
+
+    /** The start exists, but no shelter can be reached through the graph. */
+    NO_REACHABLE_SHELTER
 }

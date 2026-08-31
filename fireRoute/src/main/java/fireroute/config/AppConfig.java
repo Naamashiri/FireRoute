@@ -1,20 +1,21 @@
 package fireroute.config;
 
-import fireroute.application.FireRouteEngine;
 import fireroute.application.JunctionLocator;
+import fireroute.application.ShelterService;
 import fireroute.domain.graph.Graph;
+import fireroute.domain.routing.DijkstraPathFinder;
+import fireroute.domain.routing.PathFinder;
+import fireroute.domain.routing.RouteCostCalculator;
+import fireroute.domain.routing.ShelterMap;
 import fireroute.domain.alert.AlertState;
 import fireroute.domain.shelter.ShelterRepository;
 import fireroute.infrastructure.loader.JsonDataLoader;
 import fireroute.infrastructure.loader.ShelterLoader;
-import fireroute.routing.DijkstraPathFinder;
-import fireroute.routing.PathFinder;
-import fireroute.routing.RouteCostCalculator;
-import fireroute.routing.ShelterMap;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.IOException;
 
@@ -38,6 +39,7 @@ import java.io.IOException;
  * and can be overridden per environment without recompiling.
  */
 @Configuration
+@EnableScheduling
 public class AppConfig {
 
     /**
@@ -112,12 +114,16 @@ public class AppConfig {
     }
 
     @Bean
-    public JunctionLocator junctionLocator(Graph graph) {
-        return new JunctionLocator(graph);
+    public JunctionLocator junctionLocator(
+            Graph graph,
+            @Value("${fireroute.routing.max-snap-distance-meters:250}") double maxSnapDistanceMeters
+    ) {
+        return new JunctionLocator(graph, maxSnapDistanceMeters);
     }
 
     @Bean
-    public FireRouteEngine fireRouteEngine(Graph graph, PathFinder pathFinder) {
-        return new FireRouteEngine(graph, pathFinder);
+    public ShelterService shelterService(ShelterRepository shelterRepository) {
+        return new ShelterService(shelterRepository);
     }
+
 }

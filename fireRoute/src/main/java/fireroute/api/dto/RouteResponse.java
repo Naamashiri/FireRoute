@@ -20,10 +20,13 @@ import java.util.List;
  */
 public record RouteResponse(
         boolean found,
+        RouteType routeType,
         RouteFailureReason failureReason,
         double totalTravelTime,
         List<RoutePoint> pathPoints,
         double maxMinutesToShelter,
-        boolean shelterConstraintSatisfied
+        boolean shelterConstraintSatisfied,
+        ShelterResponse destinationShelter,
+        boolean alreadyAtShelter
 ) {
 }

@@ -1,0 +1,41 @@
+.install-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 13px;
+  background: var(--green);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.install-button[hidden] {
+  display: none !important;
+}
+
+.install-help ol {
+  padding-right: 20px;
+  color: var(--ink);
+}
+
+.install-help p,
+.install-help li {
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (display-mode: standalone) {
+  .install-button {
+    display: none !important;
+  }
+
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+@media (max-width: 430px) {
+  .install-button {
+    padding: 7px 10px;
+  }
+}

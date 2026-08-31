@@ -1,9 +1,9 @@
 package fireroute.infrastructure.alert;
 
-import fireroute.application.AlertReading;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import fireroute.domain.alert.AlertStatus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -13,7 +13,7 @@ class SimulatedAlertSourceTest {
     @Test
     @DisplayName("Should start quiet")
     void startsQuiet() {
-        assertEquals(AlertReading.QUIET, new SimulatedAlertSource().read());
+        assertEquals(AlertStatus.QUIET, new SimulatedAlertSource().read());
     }
 
     @Test
@@ -21,11 +21,11 @@ class SimulatedAlertSourceTest {
     void reportsWhatWasSet() {
         SimulatedAlertSource source = new SimulatedAlertSource();
 
-        source.set(AlertReading.ACTIVE);
-        assertEquals(AlertReading.ACTIVE, source.read());
+        source.set(AlertStatus.ACTIVE);
+        assertEquals(AlertStatus.ACTIVE, source.read());
 
-        source.set(AlertReading.QUIET);
-        assertEquals(AlertReading.QUIET, source.read());
+        source.set(AlertStatus.QUIET);
+        assertEquals(AlertStatus.QUIET, source.read());
     }
 
     @Test

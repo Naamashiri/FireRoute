@@ -1,6 +1,7 @@
 package fireroute.api.controller;
 
 import fireroute.api.dto.AlertStatusResponse;
+import fireroute.api.mapper.AlertStatusMapper;
 import fireroute.domain.alert.AlertState;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,19 +21,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class AlertController {
 
     private final AlertState alertState;
+    private final AlertStatusMapper mapper;
 
-    public AlertController(AlertState alertState) {
-        if (alertState == null) {
-            throw new IllegalArgumentException("alertState must not be null");
+    public AlertController(AlertState alertState, AlertStatusMapper mapper) {
+        if (alertState == null || mapper == null) {
+            throw new IllegalArgumentException("alertState and mapper must not be null");
         }
         this.alertState = alertState;
+        this.mapper = mapper;
     }
 
     @GetMapping("/alerts/status")
     public AlertStatusResponse status() {
-        return new AlertStatusResponse(
-                alertState.getAreaId(),
-                alertState.isAlertActive()
-        );
+        return mapper.toResponse(alertState);
     }
 }
